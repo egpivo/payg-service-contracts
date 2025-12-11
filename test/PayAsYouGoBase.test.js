@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("PayAsYouGo", function () {
-  let payAsYouGo;
+describe("PayAsYouGoBase", function () {
+  let payAsYouGoBase;
   let owner;
   let provider;
   let user;
@@ -10,9 +10,9 @@ describe("PayAsYouGo", function () {
   beforeEach(async function () {
     [owner, provider, user] = await ethers.getSigners();
 
-    const PayAsYouGo = await ethers.getContractFactory("PayAsYouGo");
-    payAsYouGo = await PayAsYouGo.deploy();
-    await payAsYouGo.waitForDeployment();
+    const PayAsYouGoBase = await ethers.getContractFactory("PayAsYouGoBase");
+    payAsYouGoBase = await PayAsYouGoBase.deploy();
+    await payAsYouGoBase.waitForDeployment();
   });
 
   describe("Service Registration", function () {
@@ -20,11 +20,11 @@ describe("PayAsYouGo", function () {
       const serviceId = 1;
       const price = ethers.parseEther("0.001");
 
-      await expect(payAsYouGo.connect(provider).registerService(serviceId, price))
-        .to.emit(payAsYouGo, "ServiceRegistered")
+      await expect(payAsYouGoBase.connect(provider).registerService(serviceId, price))
+        .to.emit(payAsYouGoBase, "ServiceRegistered")
         .withArgs(serviceId, provider.address, price);
 
-      const service = await payAsYouGo.getService(serviceId);
+      const service = await payAsYouGoBase.getService(serviceId);
       expect(service.id).to.equal(serviceId);
       expect(service.price).to.equal(price);
       expect(service.provider).to.equal(provider.address);
@@ -33,22 +33,22 @@ describe("PayAsYouGo", function () {
 
     it("Should reject zero price", async function () {
       await expect(
-        payAsYouGo.connect(provider).registerService(1, 0)
+        payAsYouGoBase.connect(provider).registerService(1, 0)
       ).to.be.revertedWith("Price must be greater than 0");
     });
 
     it("Should reject duplicate service ID", async function () {
-      await payAsYouGo.connect(provider).registerService(1, ethers.parseEther("0.001"));
+      await payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.001"));
       
       await expect(
-        payAsYouGo.connect(provider).registerService(1, ethers.parseEther("0.002"))
+        payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.002"))
       ).to.be.revertedWith("Service ID already exists");
     });
   });
 
   describe("Service Usage", function () {
     beforeEach(async function () {
-      await payAsYouGo.connect(provider).registerService(1, ethers.parseEther("0.001"));
+      await payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.001"));
     });
 
     it("Should allow user to pay and use service", async function () {
@@ -56,12 +56,12 @@ describe("PayAsYouGo", function () {
       const price = ethers.parseEther("0.001");
 
       await expect(
-        payAsYouGo.connect(user).useService(serviceId, { value: price })
+        payAsYouGoBase.connect(user).useService(serviceId, { value: price })
       )
-        .to.emit(payAsYouGo, "ServiceUsed")
+        .to.emit(payAsYouGoBase, "ServiceUsed")
         .withArgs(serviceId, user.address, 1);
 
-      const service = await payAsYouGo.getService(serviceId);
+      const service = await payAsYouGoBase.getService(serviceId);
       expect(service.usageCount).to.equal(1);
     });
 
@@ -69,16 +69,16 @@ describe("PayAsYouGo", function () {
       const serviceId = 1;
       const price = ethers.parseEther("0.001");
 
-      await payAsYouGo.connect(user).useService(serviceId, { value: price });
-      await payAsYouGo.connect(user).useService(serviceId, { value: price });
+      await payAsYouGoBase.connect(user).useService(serviceId, { value: price });
+      await payAsYouGoBase.connect(user).useService(serviceId, { value: price });
 
-      const service = await payAsYouGo.getService(serviceId);
+      const service = await payAsYouGoBase.getService(serviceId);
       expect(service.usageCount).to.equal(2);
     });
 
     it("Should reject insufficient payment", async function () {
       await expect(
-        payAsYouGo.connect(user).useService(1, { value: ethers.parseEther("0.0005") })
+        payAsYouGoBase.connect(user).useService(1, { value: ethers.parseEther("0.0005") })
       ).to.be.revertedWith("Insufficient payment");
     });
 
@@ -89,7 +89,7 @@ describe("PayAsYouGo", function () {
 
       const userBalanceBefore = await ethers.provider.getBalance(user.address);
       
-      const tx = await payAsYouGo.connect(user).useService(serviceId, { value: excessPayment });
+      const tx = await payAsYouGoBase.connect(user).useService(serviceId, { value: excessPayment });
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
@@ -102,17 +102,17 @@ describe("PayAsYouGo", function () {
 
   describe("Withdraw", function () {
     beforeEach(async function () {
-      await payAsYouGo.connect(provider).registerService(1, ethers.parseEther("0.001"));
-      await payAsYouGo.connect(user).useService(1, { value: ethers.parseEther("0.001") });
+      await payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.001"));
+      await payAsYouGoBase.connect(user).useService(1, { value: ethers.parseEther("0.001") });
     });
 
     it("Should allow provider to withdraw earnings", async function () {
-      const earnings = await payAsYouGo.earnings(provider.address);
+      const earnings = await payAsYouGoBase.earnings(provider.address);
       expect(earnings).to.equal(ethers.parseEther("0.001"));
 
       const providerBalanceBefore = await ethers.provider.getBalance(provider.address);
 
-      const tx = await payAsYouGo.connect(provider).withdraw();
+      const tx = await payAsYouGoBase.connect(provider).withdraw();
       const receipt = await tx.wait();
       const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
@@ -120,16 +120,36 @@ describe("PayAsYouGo", function () {
       
       expect(providerBalanceAfter - providerBalanceBefore).to.equal(earnings - gasUsed);
       
-      const earningsAfter = await payAsYouGo.earnings(provider.address);
+      const earningsAfter = await payAsYouGoBase.earnings(provider.address);
       expect(earningsAfter).to.equal(0);
     });
 
     it("Should reject withdraw when no earnings", async function () {
-      await payAsYouGo.connect(provider).withdraw();
+      await payAsYouGoBase.connect(provider).withdraw();
       
       await expect(
-        payAsYouGo.connect(provider).withdraw()
+        payAsYouGoBase.connect(provider).withdraw()
       ).to.be.revertedWith("No earnings to withdraw");
+    });
+  });
+
+  describe("View Functions", function () {
+    beforeEach(async function () {
+      await payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.001"));
+      await payAsYouGoBase.connect(provider).registerService(2, ethers.parseEther("0.002"));
+    });
+
+    it("Should return correct service count", async function () {
+      const count = await payAsYouGoBase.getServiceCount();
+      expect(count).to.equal(2);
+    });
+
+    it("Should return service details", async function () {
+      const service = await payAsYouGoBase.getService(1);
+      expect(service.id).to.equal(1);
+      expect(service.price).to.equal(ethers.parseEther("0.001"));
+      expect(service.provider).to.equal(provider.address);
+      expect(service.usageCount).to.equal(0);
     });
   });
 });

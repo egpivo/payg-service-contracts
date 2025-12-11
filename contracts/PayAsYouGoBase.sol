@@ -2,15 +2,18 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title PayAsYouGo
- * @dev A simple pay-as-you-go service contract
+ * @title PayAsYouGoBase
+ * @dev Base contract for pay-as-you-go services
+ * 
+ * This contract provides the core functionality that can be inherited by
+ * specific service implementations (e.g., ArticleSubscription, VideoStreaming, etc.)
  * 
  * Features:
  * 1. Provider registers service with id and price
  * 2. User pays once (pay-per-use) → usageCount +1
  * 3. Provider withdraws earnings
  */
-contract PayAsYouGo {
+contract PayAsYouGoBase {
     
     // Service structure
     struct Service {
@@ -40,7 +43,7 @@ contract PayAsYouGo {
      * @param _serviceId Unique identifier for the service
      * @param _price Price per use in wei
      */
-    function registerService(uint256 _serviceId, uint256 _price) external {
+    function registerService(uint256 _serviceId, uint256 _price) public virtual {
         require(_price > 0, "Price must be greater than 0");
         require(!services[_serviceId].exists, "Service ID already exists");
         
@@ -61,7 +64,7 @@ contract PayAsYouGo {
      * @dev Pay for and use a service (pay-per-use)
      * @param _serviceId The ID of the service to use
      */
-    function useService(uint256 _serviceId) external payable {
+    function useService(uint256 _serviceId) public virtual payable {
         Service storage service = services[_serviceId];
         
         require(service.exists, "Service does not exist");
@@ -84,7 +87,7 @@ contract PayAsYouGo {
     /**
      * @dev Withdraw earnings for a provider
      */
-    function withdraw() external {
+    function withdraw() public virtual {
         uint256 amount = earnings[msg.sender];
         require(amount > 0, "No earnings to withdraw");
         
@@ -101,7 +104,7 @@ contract PayAsYouGo {
      * @dev Get total number of registered services
      * @return Total number of services
      */
-    function getServiceCount() external view returns (uint256) {
+    function getServiceCount() public view returns (uint256) {
         return serviceIds.length;
     }
     
@@ -113,7 +116,7 @@ contract PayAsYouGo {
      * @return provider Service provider address
      * @return usageCount Number of times service was used
      */
-    function getService(uint256 _serviceId) external view returns (
+    function getService(uint256 _serviceId) public view returns (
         uint256 id,
         uint256 price,
         address provider,

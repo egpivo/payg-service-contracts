@@ -1,30 +1,34 @@
 # Pay-as-You-Go Service Contracts
 
-A minimal Solidity contract demonstrating a simple pay‑per‑use payment model.  
-Providers register services; users pay to use them; providers withdraw earnings.
+[![Coverage Status](https://codecov.io/gh/egpivo/payg-service-contracts/branch/main/graph/badge.svg)](https://codecov.io/gh/egpivo/payg-service-contracts)
 
-## Core Concepts
+A Solidity base contract for pay-as-you-go services with example implementations.
+
+## Architecture
+
+- **PayAsYouGoBase** - Base contract with core pay-per-use functionality
+- **ArticleSubscription** - Example service implementation for article subscriptions
+
+## Features
 - Register a service with an ID and price  
-- Pay once to use a service (`usageCount` increases)  
-- Provider withdraws accumulated earnings  
+- Users pay to use a service  
+- Providers withdraw the ETH they earn  
 
-## Contract
-Located at `contracts/PayAsYouGo.sol`.  
-Includes:
-- `registerService(id, price)`
-- `useService(id)` (payable)
-- `withdraw()`
+## Contracts
 
-## Project Structure
-```
-payg-service-contracts/
-├── contracts/
-├── scripts/
-├── test/
-└── hardhat.config.js
-```
+### PayAsYouGoBase
+Base contract providing core functionality:
+- `registerService(id, price)` - Register a new service
+- `useService(id)` - Pay to use a service (payable)
+- `withdraw()` - Withdraw accumulated earnings
 
-## Quick Start
+### ArticleSubscription
+Example implementation extending PayAsYouGoBase:
+- `publishArticle(id, price, title, contentHash)` - Publish an article
+- `readArticle(id)` - Pay to read an article
+- `userHasRead(user, articleId)` - Check if user has read an article
+
+## Usage
 ```
 npm install
 npm run compile
@@ -34,10 +38,16 @@ npm run deploy
 
 ## Example
 ```solidity
-payAsYouGo.registerService(1, 0.001 ether);
-payAsYouGo.useService{value: 0.001 ether}(1);
-payAsYouGo.withdraw();
+// Using base contract
+PayAsYouGoBase service = new PayAsYouGoBase();
+service.registerService(1, 0.001 ether);
+service.useService{value: 0.001 ether}(1);
+service.withdraw();
+
+// Using ArticleSubscription
+ArticleSubscription articles = new ArticleSubscription();
+articles.publishArticle(1, 0.001 ether, "Title", keccak256("content"));
+articles.readArticle{value: 0.001 ether}(1);
 ```
 
-## License
-MIT
+MIT License

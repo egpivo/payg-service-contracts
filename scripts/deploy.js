@@ -1,15 +1,21 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("Deploying PayAsYouGo contract...");
+  console.log("Deploying PayAsYouGoBase contract...");
 
-  const PayAsYouGo = await hre.ethers.getContractFactory("PayAsYouGo");
-  const payAsYouGo = await PayAsYouGo.deploy();
+  const PayAsYouGoBase = await hre.ethers.getContractFactory("PayAsYouGoBase");
+  const payAsYouGoBase = await PayAsYouGoBase.deploy();
 
-  await payAsYouGo.waitForDeployment();
+  await payAsYouGoBase.waitForDeployment();
 
-  const address = await payAsYouGo.getAddress();
-  console.log("PayAsYouGo deployed to:", address);
+  const address = await payAsYouGoBase.getAddress();
+  console.log("PayAsYouGoBase deployed to:", address);
+  
+  console.log("\nExample: Deploy ArticleSubscription service...");
+  const ArticleSubscription = await hre.ethers.getContractFactory("ArticleSubscription");
+  const articleSubscription = await ArticleSubscription.deploy();
+  await articleSubscription.waitForDeployment();
+  console.log("ArticleSubscription deployed to:", await articleSubscription.getAddress());
 }
 
 main()
