@@ -1,4 +1,4 @@
-.PHONY: help install compile test coverage deploy node clean
+.PHONY: help install compile test coverage format lint deploy node clean
 
 # Default target
 help:
@@ -7,6 +7,8 @@ help:
 	@echo "  make compile    - Compile Solidity contracts"
 	@echo "  make test       - Run all tests"
 	@echo "  make coverage   - Run tests with coverage report"
+	@echo "  make format     - Format all files with Prettier"
+	@echo "  make lint       - Lint JavaScript and Solidity files"
 	@echo "  make deploy     - Deploy contract to local network"
 	@echo "  make node       - Start local Hardhat node"
 	@echo "  make clean      - Clean cache and artifacts"
@@ -35,6 +37,20 @@ coverage:
 	@echo "Running tests with coverage..."
 	npm run coverage
 	@echo "Coverage report generated in coverage/ directory!"
+
+# Format code
+format:
+	@echo "Formatting code..."
+	npm run format
+	@echo "Code formatted!"
+
+# Lint code
+lint:
+	@echo "Linting JavaScript files..."
+	npm run lint || true
+	@echo "Linting Solidity files..."
+	npm run lint:sol || true
+	@echo "Linting completed!"
 
 # Deploy contract
 deploy:

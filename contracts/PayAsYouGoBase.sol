@@ -128,4 +128,3 @@ contract PayAsYouGoBase {
         return (service.id, service.price, service.provider, service.usageCount);
     }
 }
-

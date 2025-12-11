@@ -38,9 +38,11 @@ jobs:
       if: matrix.node-version == '20.x'
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       if: matrix.node-version == '20.x'
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: egpivo/payg-service-contracts
         files: ./coverage/lcov.info
         flags: solidity
         name: codecov-solidity
