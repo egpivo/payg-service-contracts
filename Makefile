@@ -1,4 +1,4 @@
-.PHONY: help install compile test deploy node clean
+.PHONY: help install compile test coverage deploy node clean
 
 # Default target
 help:
@@ -6,6 +6,7 @@ help:
 	@echo "  make install    - Install dependencies (env builder)"
 	@echo "  make compile    - Compile Solidity contracts"
 	@echo "  make test       - Run all tests"
+	@echo "  make coverage   - Run tests with coverage report"
 	@echo "  make deploy     - Deploy contract to local network"
 	@echo "  make node       - Start local Hardhat node"
 	@echo "  make clean      - Clean cache and artifacts"
@@ -29,6 +30,12 @@ test:
 	npm test
 	@echo "Tests completed!"
 
+# Run tests with coverage
+coverage:
+	@echo "Running tests with coverage..."
+	npm run coverage
+	@echo "Coverage report generated in coverage/ directory!"
+
 # Deploy contract
 deploy:
 	@echo "Deploying contract..."
@@ -43,7 +50,7 @@ node:
 # Clean build artifacts
 clean:
 	@echo "Cleaning cache and artifacts..."
-	rm -rf cache artifacts typechain-types
+	rm -rf cache artifacts typechain-types coverage coverage.json
 	@echo "Cleaned!"
 
 # Full workflow: compile, test, and deploy
