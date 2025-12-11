@@ -1,6 +1,5 @@
 # Pay-as-You-Go Service Contracts
-
-[![Coverage Status](https://codecov.io/gh/egpivo/payg-service-contracts/branch/main/graph/badge.svg)](https://codecov.io/gh/egpivo/payg-service-contracts)
+[![CI](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml)
 
 A Solidity base contract for pay-as-you-go services with example implementations.
 
@@ -35,40 +34,6 @@ npm run compile
 npm test
 npm run deploy
 ```
-
-## Code Quality
-
-This project uses Prettier for formatting and ESLint/Solhint for linting.
-
-### Formatting
-
-```bash
-# Format all files
-npm run format
-# or
-make format
-
-# Check formatting without changing files
-npm run format:check
-```
-
-### Linting
-
-```bash
-# Lint JavaScript files
-npm run lint
-
-# Lint Solidity files
-npm run lint:sol
-
-# Fix auto-fixable linting issues
-npm run lint:fix
-
-# Run all linting
-make lint
-```
-
-Pre-commit hooks automatically format staged files before each commit.
 
 ## Example
 ```solidity
