@@ -38,13 +38,40 @@ contract PayAsYouGoBase {
     event ServiceUsed(uint256 indexed serviceId, address indexed user, uint256 newUsageCount);
     event Withdrawn(address indexed provider, uint256 amount);
     
+    // Modifiers
+    /**
+     * @dev Modifier to check if service exists
+     * @param _serviceId The ID of the service to check
+     */
+    modifier serviceExists(uint256 _serviceId) {
+        require(services[_serviceId].exists, "Service does not exist");
+        _;
+    }
+    
+    /**
+     * @dev Modifier to check if caller is the provider of a service
+     * @param _serviceId The ID of the service
+     */
+    modifier onlyProvider(uint256 _serviceId) {
+        require(services[_serviceId].provider == msg.sender, "Only provider can call this");
+        _;
+    }
+    
+    /**
+     * @dev Modifier to check if price is valid (greater than 0)
+     * @param _price The price to validate
+     */
+    modifier validPrice(uint256 _price) {
+        require(_price > 0, "Price must be greater than 0");
+        _;
+    }
+    
     /**
      * @dev Register a new service
      * @param _serviceId Unique identifier for the service
      * @param _price Price per use in wei
      */
-    function registerService(uint256 _serviceId, uint256 _price) public virtual {
-        require(_price > 0, "Price must be greater than 0");
+    function registerService(uint256 _serviceId, uint256 _price) public virtual validPrice(_price) {
         require(!services[_serviceId].exists, "Service ID already exists");
         
         services[_serviceId] = Service({
@@ -64,10 +91,9 @@ contract PayAsYouGoBase {
      * @dev Pay for and use a service (pay-per-use)
      * @param _serviceId The ID of the service to use
      */
-    function useService(uint256 _serviceId) public virtual payable {
+    function useService(uint256 _serviceId) public virtual payable serviceExists(_serviceId) {
         Service storage service = services[_serviceId];
         
-        require(service.exists, "Service does not exist");
         require(msg.value >= service.price, "Insufficient payment");
         
         // Increment usage count
@@ -116,15 +142,13 @@ contract PayAsYouGoBase {
      * @return provider Service provider address
      * @return usageCount Number of times service was used
      */
-    function getService(uint256 _serviceId) public view returns (
+    function getService(uint256 _serviceId) public view serviceExists(_serviceId) returns (
         uint256 id,
         uint256 price,
         address provider,
         uint256 usageCount
     ) {
         Service memory service = services[_serviceId];
-        require(service.exists, "Service does not exist");
-        
         return (service.id, service.price, service.provider, service.usageCount);
     }
 }

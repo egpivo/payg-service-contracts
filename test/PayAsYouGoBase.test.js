@@ -82,6 +82,12 @@ describe("PayAsYouGoBase", function () {
       ).to.be.revertedWith("Insufficient payment");
     });
 
+    it("Should reject using non-existent service", async function () {
+      await expect(
+        payAsYouGoBase.connect(user).useService(999, { value: ethers.parseEther("0.001") })
+      ).to.be.revertedWith("Service does not exist");
+    });
+
     it("Should refund excess payment", async function () {
       const serviceId = 1;
       const price = ethers.parseEther("0.001");
@@ -150,6 +156,36 @@ describe("PayAsYouGoBase", function () {
       expect(service.price).to.equal(ethers.parseEther("0.001"));
       expect(service.provider).to.equal(provider.address);
       expect(service.usageCount).to.equal(0);
+    });
+
+    it("Should reject getting non-existent service", async function () {
+      await expect(
+        payAsYouGoBase.getService(999)
+      ).to.be.revertedWith("Service does not exist");
+    });
+  });
+
+  describe("Modifiers", function () {
+    beforeEach(async function () {
+      await payAsYouGoBase.connect(provider).registerService(1, ethers.parseEther("0.001"));
+    });
+
+    it("Should enforce validPrice modifier", async function () {
+      await expect(
+        payAsYouGoBase.connect(provider).registerService(2, 0)
+      ).to.be.revertedWith("Price must be greater than 0");
+    });
+
+    it("Should enforce serviceExists modifier on useService", async function () {
+      await expect(
+        payAsYouGoBase.connect(user).useService(999, { value: ethers.parseEther("0.001") })
+      ).to.be.revertedWith("Service does not exist");
+    });
+
+    it("Should enforce serviceExists modifier on getService", async function () {
+      await expect(
+        payAsYouGoBase.getService(999)
+      ).to.be.revertedWith("Service does not exist");
     });
   });
 });

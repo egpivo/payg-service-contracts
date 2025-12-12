@@ -97,6 +97,12 @@ describe("ArticleSubscription", function () {
       const article = await articleSubscription.getArticle(articleId);
       expect(article.readCount).to.equal(2);
     });
+
+    it("Should reject reading non-existent article", async function () {
+      await expect(
+        articleSubscription.connect(reader).readArticle(999, { value: price })
+      ).to.be.revertedWith("Article does not exist");
+    });
   });
 
   describe("Inherited Functionality", function () {
@@ -122,6 +128,25 @@ describe("ArticleSubscription", function () {
       
       const count = await articleSubscription.getServiceCount();
       expect(count).to.equal(2);
+    });
+  });
+
+  describe("Modifiers", function () {
+    beforeEach(async function () {
+      const contentHash = ethers.id("content");
+      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Article 1", contentHash);
+    });
+
+    it("Should enforce articleExists modifier on readArticle", async function () {
+      await expect(
+        articleSubscription.connect(reader).readArticle(999, { value: ethers.parseEther("0.001") })
+      ).to.be.revertedWith("Article does not exist");
+    });
+
+    it("Should enforce articleExists modifier on getArticle", async function () {
+      await expect(
+        articleSubscription.getArticle(999)
+      ).to.be.revertedWith("Article does not exist");
     });
   });
 });

@@ -32,6 +32,25 @@ contract ArticleSubscription is PayAsYouGoBase {
     event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
     event ArticleRead(uint256 indexed articleId, address indexed reader);
     
+    // Modifiers
+    /**
+     * @dev Modifier to check if article exists
+     * @param _articleId The ID of the article to check
+     */
+    modifier articleExists(uint256 _articleId) {
+        require(services[_articleId].exists, "Article does not exist");
+        _;
+    }
+    
+    /**
+     * @dev Modifier to check if caller is the publisher of an article
+     * @param _articleId The ID of the article
+     */
+    modifier onlyPublisher(uint256 _articleId) {
+        require(services[_articleId].provider == msg.sender, "Only publisher can call this");
+        _;
+    }
+    
     /**
      * @dev Register an article as a service
      * @param _articleId Unique identifier for the article
@@ -63,7 +82,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @dev Read an article (pay-per-use)
      * @param _articleId The ID of the article to read
      */
-    function readArticle(uint256 _articleId) external payable {
+    function readArticle(uint256 _articleId) external payable articleExists(_articleId) {
         // Use base contract's useService
         useService(_articleId);
         
@@ -94,7 +113,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @return provider Article publisher address
      * @return readCount Number of times article was read
      */
-    function getArticle(uint256 _articleId) external view returns (
+    function getArticle(uint256 _articleId) external view articleExists(_articleId) returns (
         uint256 articleId,
         string memory title,
         bytes32 contentHash,
@@ -103,8 +122,6 @@ contract ArticleSubscription is PayAsYouGoBase {
         address provider,
         uint256 readCount
     ) {
-        require(services[_articleId].exists, "Article does not exist");
-        
         Article memory article = articles[_articleId];
         (, uint256 servicePrice, address serviceProvider, uint256 usage) = getService(_articleId);
         
