@@ -21,9 +21,10 @@ describe("ArticleSubscription", function () {
       const price = ethers.parseEther("0.001");
       const title = "Introduction to Solidity";
       const contentHash = ethers.id("article content");
+      const accessDuration = 2 * 24 * 60 * 60; // 2 days in seconds
 
       await expect(
-        articleSubscription.connect(publisher).publishArticle(articleId, price, title, contentHash)
+        articleSubscription.connect(publisher).publishArticle(articleId, price, title, contentHash, accessDuration)
       )
         .to.emit(articleSubscription, "ServiceRegistered")
         .withArgs(articleId, publisher.address, price)
@@ -36,14 +37,15 @@ describe("ArticleSubscription", function () {
       expect(article.contentHash).to.equal(contentHash);
       expect(article.price).to.equal(price);
       expect(article.provider).to.equal(publisher.address);
+      expect(article.accessDuration).to.equal(accessDuration);
     });
 
     it("Should reject duplicate article ID", async function () {
       const contentHash = ethers.id("content");
-      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Title", contentHash);
+      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Title", contentHash, 0);
       
       await expect(
-        articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.002"), "Another Title", contentHash)
+        articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.002"), "Another Title", contentHash, 0)
       ).to.be.revertedWith("Service ID already exists");
     });
   });
@@ -55,7 +57,7 @@ describe("ArticleSubscription", function () {
     const contentHash = ethers.id("test content");
 
     beforeEach(async function () {
-      await articleSubscription.connect(publisher).publishArticle(articleId, price, title, contentHash);
+      await articleSubscription.connect(publisher).publishArticle(articleId, price, title, contentHash, 0); // 0 = permanent access
     });
 
     it("Should allow user to read article after payment", async function () {
@@ -108,7 +110,7 @@ describe("ArticleSubscription", function () {
   describe("Inherited Functionality", function () {
     beforeEach(async function () {
       const contentHash = ethers.id("content");
-      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Article 1", contentHash);
+      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Article 1", contentHash, 0);
       await articleSubscription.connect(reader).readArticle(1, { value: ethers.parseEther("0.001") });
     });
 
@@ -124,17 +126,68 @@ describe("ArticleSubscription", function () {
 
     it("Should return service count", async function () {
       const contentHash = ethers.id("content2");
-      await articleSubscription.connect(publisher).publishArticle(2, ethers.parseEther("0.002"), "Article 2", contentHash);
+      await articleSubscription.connect(publisher).publishArticle(2, ethers.parseEther("0.002"), "Article 2", contentHash, 0);
       
       const count = await articleSubscription.getServiceCount();
       expect(count).to.equal(2);
     });
   });
 
+  describe("Time-Limited Access", function () {
+    const articleId = 1;
+    const price = ethers.parseEther("0.001");
+    const title = "Time-Limited Article";
+    const contentHash = ethers.id("time limited content");
+    const accessDuration = 2 * 24 * 60 * 60; // 2 days in seconds
+
+    beforeEach(async function () {
+      await articleSubscription.connect(publisher).publishArticle(articleId, price, title, contentHash, accessDuration);
+    });
+
+    it("Should grant time-limited access when reading article", async function () {
+      await articleSubscription.connect(reader).readArticle(articleId, { value: price });
+
+      const expiry = await articleSubscription.getAccessExpiry(reader.address, articleId);
+      const currentTime = await ethers.provider.getBlock("latest").then(b => b.timestamp);
+      
+      // Expiry should be approximately currentTime + accessDuration
+      expect(expiry).to.be.greaterThan(currentTime);
+      expect(expiry).to.be.lessThanOrEqual(currentTime + accessDuration + 10); // Allow 10s buffer for block time
+    });
+
+    it("Should grant permanent access when accessDuration is 0", async function () {
+      const permanentArticleId = 2;
+      await articleSubscription.connect(publisher).publishArticle(
+        permanentArticleId, 
+        price, 
+        "Permanent Article", 
+        ethers.id("permanent"), 
+        0 // 0 = permanent
+      );
+
+      await articleSubscription.connect(reader).readArticle(permanentArticleId, { value: price });
+
+      const expiry = await articleSubscription.getAccessExpiry(reader.address, permanentArticleId);
+      expect(expiry).to.equal(ethers.MaxUint256); // Permanent access
+    });
+
+    it("Should return true for hasValidAccess before expiry", async function () {
+      await articleSubscription.connect(reader).readArticle(articleId, { value: price });
+
+      const hasAccess = await articleSubscription.hasValidAccess(reader.address, articleId);
+      expect(hasAccess).to.be.true;
+    });
+
+    it("Should return false for hasValidAccess if never purchased", async function () {
+      const hasAccess = await articleSubscription.hasValidAccess(reader.address, articleId);
+      expect(hasAccess).to.be.false;
+    });
+  });
+
   describe("Modifiers", function () {
     beforeEach(async function () {
       const contentHash = ethers.id("content");
-      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Article 1", contentHash);
+      await articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.001"), "Article 1", contentHash, 0);
     });
 
     it("Should enforce articleExists modifier on readArticle", async function () {

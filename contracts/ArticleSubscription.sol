@@ -20,6 +20,7 @@ contract ArticleSubscription is PayAsYouGoBase {
         string title;
         bytes32 contentHash;
         uint256 publishDate;
+        uint256 accessDuration; // Access duration in seconds (0 = permanent)
     }
     
     // Mapping from article ID to Article
@@ -27,6 +28,9 @@ contract ArticleSubscription is PayAsYouGoBase {
     
     // Mapping from user address to article IDs they've read
     mapping(address => mapping(uint256 => bool)) public hasRead;
+    
+    // Mapping from user address to article ID to access expiry timestamp
+    mapping(address => mapping(uint256 => uint256)) public accessExpiry;
     
     // Events
     event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
@@ -52,17 +56,30 @@ contract ArticleSubscription is PayAsYouGoBase {
     }
     
     /**
+     * @dev Modifier to check if user's access is still valid
+     * @param _articleId The ID of the article
+     */
+    modifier withinAccessPeriod(uint256 _articleId) {
+        uint256 expiry = accessExpiry[msg.sender][_articleId];
+        require(expiry > 0, "Access not granted");
+        require(block.timestamp <= expiry, "Access expired");
+        _;
+    }
+    
+    /**
      * @dev Register an article as a service
      * @param _articleId Unique identifier for the article
      * @param _price Price to read the article
      * @param _title Title of the article
      * @param _contentHash Hash of the article content (for verification)
+     * @param _accessDuration Access duration in seconds (0 = permanent access)
      */
     function publishArticle(
         uint256 _articleId,
         uint256 _price,
         string memory _title,
-        bytes32 _contentHash
+        bytes32 _contentHash,
+        uint256 _accessDuration
     ) external {
         // Use base contract's registerService
         registerService(_articleId, _price);
@@ -72,7 +89,8 @@ contract ArticleSubscription is PayAsYouGoBase {
             articleId: _articleId,
             title: _title,
             contentHash: _contentHash,
-            publishDate: block.timestamp
+            publishDate: block.timestamp,
+            accessDuration: _accessDuration
         });
         
         emit ArticlePublished(_articleId, _title, msg.sender);
@@ -89,7 +107,40 @@ contract ArticleSubscription is PayAsYouGoBase {
         // Mark article as read by this user
         hasRead[msg.sender][_articleId] = true;
         
+        // Set access expiry time
+        Article memory article = articles[_articleId];
+        if (article.accessDuration > 0) {
+            // Time-limited access
+            accessExpiry[msg.sender][_articleId] = block.timestamp + article.accessDuration;
+        } else {
+            // Permanent access (set to max uint256)
+            accessExpiry[msg.sender][_articleId] = type(uint256).max;
+        }
+        
         emit ArticleRead(_articleId, msg.sender);
+    }
+    
+    /**
+     * @dev Check if user has valid access to an article
+     * @param _user User address
+     * @param _articleId Article ID
+     * @return True if user has valid access
+     */
+    function hasValidAccess(address _user, uint256 _articleId) external view returns (bool) {
+        uint256 expiry = accessExpiry[_user][_articleId];
+        if (expiry == 0) return false; // Never purchased
+        if (expiry == type(uint256).max) return true; // Permanent access
+        return block.timestamp <= expiry; // Check if not expired
+    }
+    
+    /**
+     * @dev Get access expiry time for a user and article
+     * @param _user User address
+     * @param _articleId Article ID
+     * @return Expiry timestamp (0 if never purchased, max uint256 if permanent)
+     */
+    function getAccessExpiry(address _user, uint256 _articleId) external view returns (uint256) {
+        return accessExpiry[_user][_articleId];
     }
     
     /**
@@ -109,6 +160,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @return title Article title
      * @return contentHash Content hash
      * @return publishDate Publish timestamp
+     * @return accessDuration Access duration in seconds (0 = permanent)
      * @return price Price to read
      * @return provider Article publisher address
      * @return readCount Number of times article was read
@@ -118,6 +170,7 @@ contract ArticleSubscription is PayAsYouGoBase {
         string memory title,
         bytes32 contentHash,
         uint256 publishDate,
+        uint256 accessDuration,
         uint256 price,
         address provider,
         uint256 readCount
@@ -130,6 +183,7 @@ contract ArticleSubscription is PayAsYouGoBase {
             article.title,
             article.contentHash,
             article.publishDate,
+            article.accessDuration,
             servicePrice,
             serviceProvider,
             usage
