@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./PayAsYouGoBase.sol";
+import "../PayAsYouGoBase.sol";
 
 /**
  * @title ArticleSubscription
- * @dev Article subscription service using PayAsYouGoBase
+ * @dev Subscription-based article service (purchase once, read multiple times)
  * 
- * This contract extends PayAsYouGoBase with article-specific features:
- * - Articles have titles and content hashes
- * - Users can subscribe to read articles
- * - Tracks which users have read which articles
+ * Pattern: Purchase once, then read multiple times during access period
+ * - Writes to accessExpiry storage (cost consideration for high-volume)
+ * - Uses withinAccessPeriod modifier for access control
+ * 
+ * For pay-per-read pattern, see ArticlePayPerRead contract
  */
 contract ArticleSubscription is PayAsYouGoBase {
     
@@ -20,38 +21,37 @@ contract ArticleSubscription is PayAsYouGoBase {
         string title;
         bytes32 contentHash;
         uint256 publishDate;
-        uint256 accessDuration; // Access duration in seconds (0 = permanent)
+        uint256 accessDuration;
     }
     
     // Mapping from article ID to Article
     mapping(uint256 => Article) public articles;
     
+    // Mapping from user address to article IDs they've purchased
+    mapping(address => mapping(uint256 => bool)) public hasPurchased;
+    
     // Mapping from user address to article IDs they've read
     mapping(address => mapping(uint256 => bool)) public hasRead;
     
     // Mapping from user address to article ID to access expiry timestamp
+    // Cost consideration: Each purchase writes to storage (user x article = storage slot)
+    // For high-volume scenarios, consider off-chain entitlement tracking via events
     mapping(address => mapping(uint256 => uint256)) public accessExpiry;
     
     // Events
     event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
-    event ArticleRead(uint256 indexed articleId, address indexed reader);
+    event ArticleRead(uint256 indexed articleId, address indexed reader, uint256 timestamp);
+    event ArticlePurchased(uint256 indexed articleId, address indexed buyer, uint256 expiry);
     
     // Modifiers
     /**
      * @dev Modifier to check if article exists
      * @param _articleId The ID of the article to check
+     * @notice Checks both service registration and article data to ensure consistency
      */
     modifier articleExists(uint256 _articleId) {
         require(services[_articleId].exists, "Article does not exist");
-        _;
-    }
-    
-    /**
-     * @dev Modifier to check if caller is the publisher of an article
-     * @param _articleId The ID of the article
-     */
-    modifier onlyPublisher(uint256 _articleId) {
-        require(services[_articleId].provider == msg.sender, "Only publisher can call this");
+        require(articles[_articleId].publishDate != 0, "Article data not found");
         _;
     }
     
@@ -97,27 +97,49 @@ contract ArticleSubscription is PayAsYouGoBase {
     }
     
     /**
-     * @dev Read an article (pay-per-use)
-     * @param _articleId The ID of the article to read
+     * @dev Purchase article access (pay once, read multiple times during access period)
+     * @param _articleId The ID of the article to purchase
+     * @notice Subscription pattern: Purchase once, then read multiple times without paying
+     *         Writes to accessExpiry storage (cost consideration for high-volume scenarios)
+     *         After purchase, use hasValidAccess() to check access, or call readArticle()
      */
-    function readArticle(uint256 _articleId) external payable articleExists(_articleId) {
-        // Use base contract's useService
+    function purchaseArticle(uint256 _articleId) external payable articleExists(_articleId) {
+        // Pay once for access
         useService(_articleId);
         
-        // Mark article as read by this user
-        hasRead[msg.sender][_articleId] = true;
-        
-        // Set access expiry time
+        // Set access expiry time (storage write - gas cost)
         Article memory article = articles[_articleId];
+        uint256 expiry;
         if (article.accessDuration > 0) {
             // Time-limited access
-            accessExpiry[msg.sender][_articleId] = block.timestamp + article.accessDuration;
+            expiry = block.timestamp + article.accessDuration;
+            accessExpiry[msg.sender][_articleId] = expiry;
         } else {
             // Permanent access (set to max uint256)
-            accessExpiry[msg.sender][_articleId] = type(uint256).max;
+            expiry = type(uint256).max;
+            accessExpiry[msg.sender][_articleId] = expiry;
         }
         
-        emit ArticleRead(_articleId, msg.sender);
+        // Mark as purchased (not read yet)
+        hasPurchased[msg.sender][_articleId] = true;
+        
+        // Emit purchase event (not read event)
+        emit ArticlePurchased(_articleId, msg.sender, expiry);
+    }
+    
+    /**
+     * @dev Read article after purchase (no payment required)
+     * @param _articleId The ID of the article to read
+     * @notice Requires valid access period (purchased and not expired)
+     *         This is the "purchase once, read multiple times" pattern
+     *         Alternative: Frontend can just call hasValidAccess() without this function
+     */
+    function readArticle(uint256 _articleId) external articleExists(_articleId) withinAccessPeriod(_articleId) {
+        // Mark as read (separate from purchase)
+        hasRead[msg.sender][_articleId] = true;
+        
+        // Emit read event for tracking
+        emit ArticleRead(_articleId, msg.sender, block.timestamp);
     }
     
     /**
@@ -141,6 +163,16 @@ contract ArticleSubscription is PayAsYouGoBase {
      */
     function getAccessExpiry(address _user, uint256 _articleId) external view returns (uint256) {
         return accessExpiry[_user][_articleId];
+    }
+    
+    /**
+     * @dev Check if user has purchased an article
+     * @param _user User address
+     * @param _articleId Article ID
+     * @return True if user has purchased the article
+     */
+    function userHasPurchased(address _user, uint256 _articleId) external view returns (bool) {
+        return hasPurchased[_user][_articleId];
     }
     
     /**
