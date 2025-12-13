@@ -1,5 +1,6 @@
 # Pay-as-You-Go Service Contracts
 [![CI](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml)
+[![Foundry Tests](https://github.com/egpivo/payg-service-contracts/actions/workflows/foundry.yml/badge.svg)](https://github.com/egpivo/payg-service-contracts/actions/workflows/foundry.yml)
 [![codecov](https://codecov.io/gh/egpivo/payg-service-contracts/graph/badge.svg?token=Svpf1dEEyh)](https://codecov.io/gh/egpivo/payg-service-contracts)
 
 A Solidity base contract for pay-as-you-go services with example implementations.

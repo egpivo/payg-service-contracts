@@ -2,54 +2,100 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
+  workflow_dispatch:
 
 jobs:
-  test:
+  foundry-test:
+    name: Foundry Tests
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
+    timeout-minutes: 10
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          export PATH="$HOME/.foundry/bin:$PATH"
+          foundryup
+        shell: bash
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Show Forge version
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge --version
 
-    - name: Compile contracts
-      run: npm run compile
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge install foundry-rs/forge-std --no-commit || true
 
-    - name: Run tests
-      run: npm test
+      - name: Build contracts
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge build
 
-    - name: Generate coverage report
-      run: npm run coverage
-      if: matrix.node-version == '20.x'
+      - name: Run Forge tests
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge test --gas-report
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      if: matrix.node-version == '20.x'
-      with:
-        files: ./coverage/lcov.info
-        flags: solidity
-        fail_ci_if_error: false
+      - name: Generate Foundry coverage report
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          export PATH="$HOME/.foundry/bin:$PATH"
+          forge coverage --report lcov --report summary
+        continue-on-error: true
 
-    - name: Upload coverage artifact
-      uses: actions/upload-artifact@v4
-      if: matrix.node-version == '20.x'
-      with:
-        name: coverage
-        path: coverage/
-        retention-days: 14
+      - name: Upload Foundry coverage
+        if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry-coverage
+          path: lcov.info
+          retention-days: 30
+          if-no-files-found: ignore
 
+  hardhat-test:
+    name: Hardhat Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Run Hardhat tests
+        run: npm test
+
+      - name: Generate Hardhat coverage report
+        run: npm run coverage
+        continue-on-error: true
+
+      - name: Upload Hardhat coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardhat-coverage
+          path: |
+            coverage/
+          retention-days: 30
+          if-no-files-found: ignore

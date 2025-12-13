@@ -11,3 +11,13 @@ typechain-types/
 
 # Prettier
 .prettier-cache
+
+# Foundry files
+out/
+broadcast/
+cache/
+!lib/.gitkeep
+
+# Foundry specific
+forge-cache/
+forge-out/

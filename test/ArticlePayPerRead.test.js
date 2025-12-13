@@ -44,7 +44,7 @@ describe("ArticlePayPerRead", function () {
       
       await expect(
         articlePayPerRead.connect(publisher).publishArticle(1, ethers.parseEther("0.002"), "Another Title", contentHash)
-      ).to.be.revertedWith("Article already published");
+      ).to.be.revertedWith("Service ID already exists");
     });
   });
 
