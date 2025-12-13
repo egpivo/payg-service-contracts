@@ -104,6 +104,29 @@ describe("PayAsYouGoBase", function () {
       // User should have paid exactly the service price + gas
       expect(userBalanceBefore - userBalanceAfter).to.equal(price + gasUsed);
     });
+
+    it("Should only record actual payment amount in earnings (not excess)", async function () {
+      const serviceId = 1;
+      const price = ethers.parseEther("0.001");
+      const excessPayment = ethers.parseEther("0.002");
+
+      // Use service with excess payment
+      await payAsYouGoBase.connect(user).useService(serviceId, { value: excessPayment });
+
+      // Earnings should only be the actual price, not the full payment
+      const earnings = await payAsYouGoBase.earnings(provider.address);
+      expect(earnings).to.equal(price);
+
+      // Provider should be able to withdraw successfully
+      const providerBalanceBefore = await ethers.provider.getBalance(provider.address);
+      const tx = await payAsYouGoBase.connect(provider).withdraw();
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+      const providerBalanceAfter = await ethers.provider.getBalance(provider.address);
+
+      // Provider should receive exactly the price amount (minus gas)
+      expect(providerBalanceAfter - providerBalanceBefore).to.equal(price - gasUsed);
+    });
   });
 
   describe("Withdraw", function () {

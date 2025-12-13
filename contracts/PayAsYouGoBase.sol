@@ -99,8 +99,11 @@ contract PayAsYouGoBase {
         // Increment usage count
         service.usageCount += 1;
         
-        // Add payment to provider's earnings
-        earnings[service.provider] += msg.value;
+        // Calculate actual payment (only charge the service price)
+        uint256 actualPayment = service.price;
+        
+        // Add actual payment to provider's earnings
+        earnings[service.provider] += actualPayment;
         
         // Refund excess payment if any
         if (msg.value > service.price) {
