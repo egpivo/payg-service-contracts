@@ -11,7 +11,13 @@ async function main() {
   const address = await payAsYouGoBase.getAddress();
   console.log("PayAsYouGoBase deployed to:", address);
   
-  console.log("\nExample: Deploy ArticleSubscription service...");
+  console.log("\nDeploying ArticlePayPerRead (pay-per-read pattern)...");
+  const ArticlePayPerRead = await hre.ethers.getContractFactory("ArticlePayPerRead");
+  const articlePayPerRead = await ArticlePayPerRead.deploy();
+  await articlePayPerRead.waitForDeployment();
+  console.log("ArticlePayPerRead deployed to:", await articlePayPerRead.getAddress());
+  
+  console.log("\nDeploying ArticleSubscription (subscription pattern)...");
   const ArticleSubscription = await hre.ethers.getContractFactory("ArticleSubscription");
   const articleSubscription = await ArticleSubscription.deploy();
   await articleSubscription.waitForDeployment();

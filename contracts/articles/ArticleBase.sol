@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./PayAsYouGoBase.sol";
+import "../PayAsYouGoBase.sol";
 
 /**
- * @title ArticleSubscription
- * @dev Article subscription service using PayAsYouGoBase
+ * @title ArticleBase
+ * @dev Abstract base contract for article services
  * 
- * This contract extends PayAsYouGoBase with article-specific features:
- * - Articles have titles and content hashes
- * - Users can subscribe to read articles
- * - Tracks which users have read which articles
+ * Provides common functionality for article publishing and management:
+ * - Article struct and storage
+ * - Article publishing logic
+ * - Article existence checks
+ * 
+ * Child contracts should implement their own payment and reading patterns.
  */
-contract ArticleSubscription is PayAsYouGoBase {
+abstract contract ArticleBase is PayAsYouGoBase {
     
     // Article structure
     struct Article {
@@ -20,50 +22,47 @@ contract ArticleSubscription is PayAsYouGoBase {
         string title;
         bytes32 contentHash;
         uint256 publishDate;
+        uint256 accessDuration; // 0 = not applicable (for pay-per-read), > 0 = duration in seconds
     }
     
     // Mapping from article ID to Article
     mapping(uint256 => Article) public articles;
     
-    // Mapping from user address to article IDs they've read
-    mapping(address => mapping(uint256 => bool)) public hasRead;
-    
     // Events
     event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
-    event ArticleRead(uint256 indexed articleId, address indexed reader);
     
     // Modifiers
     /**
      * @dev Modifier to check if article exists
      * @param _articleId The ID of the article to check
+     * @notice Checks both service registration and article data to ensure consistency
+     *         publishDate != 0 is a reliable check (block.timestamp is never 0)
      */
     modifier articleExists(uint256 _articleId) {
         require(services[_articleId].exists, "Article does not exist");
+        require(articles[_articleId].publishDate != 0, "Article data not found");
         _;
     }
     
     /**
-     * @dev Modifier to check if caller is the publisher of an article
-     * @param _articleId The ID of the article
-     */
-    modifier onlyPublisher(uint256 _articleId) {
-        require(services[_articleId].provider == msg.sender, "Only publisher can call this");
-        _;
-    }
-    
-    /**
-     * @dev Register an article as a service
+     * @dev Internal function to publish an article
      * @param _articleId Unique identifier for the article
      * @param _price Price to read the article
      * @param _title Title of the article
      * @param _contentHash Hash of the article content (for verification)
+     * @param _accessDuration Access duration in seconds (0 = not applicable)
+     * @notice This is an internal function that child contracts should call from their public publishArticle
      */
-    function publishArticle(
+    function _publishArticle(
         uint256 _articleId,
         uint256 _price,
         string memory _title,
-        bytes32 _contentHash
-    ) external {
+        bytes32 _contentHash,
+        uint256 _accessDuration
+    ) internal {
+        // Prevent duplicate publishing (even though registerService will also check)
+        require(articles[_articleId].publishDate == 0, "Article already published");
+        
         // Use base contract's registerService
         registerService(_articleId, _price);
         
@@ -72,43 +71,21 @@ contract ArticleSubscription is PayAsYouGoBase {
             articleId: _articleId,
             title: _title,
             contentHash: _contentHash,
-            publishDate: block.timestamp
+            publishDate: block.timestamp,
+            accessDuration: _accessDuration
         });
         
         emit ArticlePublished(_articleId, _title, msg.sender);
     }
     
     /**
-     * @dev Read an article (pay-per-use)
-     * @param _articleId The ID of the article to read
-     */
-    function readArticle(uint256 _articleId) external payable articleExists(_articleId) {
-        // Use base contract's useService
-        useService(_articleId);
-        
-        // Mark article as read by this user
-        hasRead[msg.sender][_articleId] = true;
-        
-        emit ArticleRead(_articleId, msg.sender);
-    }
-    
-    /**
-     * @dev Check if user has read an article
-     * @param _user User address
-     * @param _articleId Article ID
-     * @return True if user has read the article
-     */
-    function userHasRead(address _user, uint256 _articleId) external view returns (bool) {
-        return hasRead[_user][_articleId];
-    }
-    
-    /**
-     * @dev Get article details
+     * @dev Get article details (base implementation)
      * @param _articleId The ID of the article
      * @return articleId Article ID
      * @return title Article title
      * @return contentHash Content hash
      * @return publishDate Publish timestamp
+     * @return accessDuration Access duration (0 if not applicable)
      * @return price Price to read
      * @return provider Article publisher address
      * @return readCount Number of times article was read
@@ -118,6 +95,7 @@ contract ArticleSubscription is PayAsYouGoBase {
         string memory title,
         bytes32 contentHash,
         uint256 publishDate,
+        uint256 accessDuration,
         uint256 price,
         address provider,
         uint256 readCount
@@ -130,6 +108,7 @@ contract ArticleSubscription is PayAsYouGoBase {
             article.title,
             article.contentHash,
             article.publishDate,
+            article.accessDuration,
             servicePrice,
             serviceProvider,
             usage
