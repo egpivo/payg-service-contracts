@@ -1,4 +1,4 @@
-name: CI
+name: Foundry Tests
 
 on:
   push:
@@ -20,45 +20,28 @@ jobs:
           submodules: recursive
 
       - name: Install Foundry
-        run: |
-          set -e
-          curl -L https://foundry.paradigm.xyz | bash
-          export PATH="$HOME/.foundry/bin:$PATH"
-          # The installation script should have installed foundryup, but if not, install it
-          if [ ! -f "$HOME/.foundry/bin/foundryup" ]; then
-            mkdir -p $HOME/.foundry/bin
-            curl -L https://github.com/foundry-rs/foundry/releases/latest/download/foundry_nightly_linux_amd64.tar.gz -o /tmp/foundry.tar.gz
-            tar -xzf /tmp/foundry.tar.gz -C $HOME/.foundry/bin
-            chmod +x $HOME/.foundry/bin/foundryup
-          fi
-          $HOME/.foundry/bin/foundryup
-        shell: bash
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
 
       - name: Show Forge version
-        run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge --version
+        run: forge --version
 
       - name: Install dependencies
         run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge install foundry-rs/forge-std --no-commit || true
+          if [ ! -d lib/forge-std ]; then
+            forge install foundry-rs/forge-std --no-commit
+          fi
 
       - name: Build contracts
-        run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge build
+        run: forge build
 
       - name: Run Forge tests
-        run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge test --gas-report
+        run: forge test -vvv --gas-report
 
       - name: Generate Foundry coverage report
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: |
-          export PATH="$HOME/.foundry/bin:$PATH"
-          forge coverage --report lcov --report summary
+        run: forge coverage --report lcov --report summary
         continue-on-error: true
 
       - name: Upload Foundry coverage
@@ -71,6 +54,7 @@ jobs:
           if-no-files-found: ignore
 
   hardhat-test:
+    if: ${{ hashFiles('package-lock.json', 'package.json') != '' }}
     name: Hardhat Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
