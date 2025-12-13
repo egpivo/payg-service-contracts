@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../PayAsYouGoBase.sol";
+import "./ArticleBase.sol";
+import "../AccessLib.sol";
 
 /**
  * @title ArticleSubscription
@@ -13,19 +14,7 @@ import "../PayAsYouGoBase.sol";
  * 
  * For pay-per-read pattern, see ArticlePayPerRead contract
  */
-contract ArticleSubscription is PayAsYouGoBase {
-    
-    // Article structure
-    struct Article {
-        uint256 articleId;
-        string title;
-        bytes32 contentHash;
-        uint256 publishDate;
-        uint256 accessDuration;
-    }
-    
-    // Mapping from article ID to Article
-    mapping(uint256 => Article) public articles;
+contract ArticleSubscription is ArticleBase {
     
     // Mapping from user address to article IDs they've purchased
     mapping(address => mapping(uint256 => bool)) public hasPurchased;
@@ -39,21 +28,8 @@ contract ArticleSubscription is PayAsYouGoBase {
     mapping(address => mapping(uint256 => uint256)) public accessExpiry;
     
     // Events
-    event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
     event ArticleRead(uint256 indexed articleId, address indexed reader, uint256 timestamp);
     event ArticlePurchased(uint256 indexed articleId, address indexed buyer, uint256 expiry);
-    
-    // Modifiers
-    /**
-     * @dev Modifier to check if article exists
-     * @param _articleId The ID of the article to check
-     * @notice Checks both service registration and article data to ensure consistency
-     */
-    modifier articleExists(uint256 _articleId) {
-        require(services[_articleId].exists, "Article does not exist");
-        require(articles[_articleId].publishDate != 0, "Article data not found");
-        _;
-    }
     
     /**
      * @dev Modifier to check if user's access is still valid
@@ -81,27 +57,16 @@ contract ArticleSubscription is PayAsYouGoBase {
         bytes32 _contentHash,
         uint256 _accessDuration
     ) external {
-        // Use base contract's registerService
-        registerService(_articleId, _price);
-        
-        // Store article-specific data
-        articles[_articleId] = Article({
-            articleId: _articleId,
-            title: _title,
-            contentHash: _contentHash,
-            publishDate: block.timestamp,
-            accessDuration: _accessDuration
-        });
-        
-        emit ArticlePublished(_articleId, _title, msg.sender);
+        // Call internal publishArticle from ArticleBase
+        _publishArticle(_articleId, _price, _title, _contentHash, _accessDuration);
     }
     
     /**
      * @dev Purchase article access (pay once, read multiple times during access period)
      * @param _articleId The ID of the article to purchase
      * @notice Subscription pattern: Purchase once, then read multiple times without paying
-     *         Writes to accessExpiry storage (cost consideration for high-volume scenarios)
-     *         After purchase, use hasValidAccess() to check access, or call readArticle()
+     *         Allows renewal: If access not expired, extends from current expiry
+     *         If expired, starts from now. Writes to accessExpiry storage (gas cost)
      */
     function purchaseArticle(uint256 _articleId) external payable articleExists(_articleId) {
         // Pay once for access
@@ -109,16 +74,13 @@ contract ArticleSubscription is PayAsYouGoBase {
         
         // Set access expiry time (storage write - gas cost)
         Article memory article = articles[_articleId];
-        uint256 expiry;
-        if (article.accessDuration > 0) {
-            // Time-limited access
-            expiry = block.timestamp + article.accessDuration;
-            accessExpiry[msg.sender][_articleId] = expiry;
-        } else {
-            // Permanent access (set to max uint256)
-            expiry = type(uint256).max;
-            accessExpiry[msg.sender][_articleId] = expiry;
-        }
+        uint256 currentExpiry = accessExpiry[msg.sender][_articleId];
+        uint256 expiry = AccessLib.computeExpiry(
+            currentExpiry,
+            block.timestamp,
+            article.accessDuration
+        );
+        accessExpiry[msg.sender][_articleId] = expiry;
         
         // Mark as purchased (not read yet)
         hasPurchased[msg.sender][_articleId] = true;
@@ -150,9 +112,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      */
     function hasValidAccess(address _user, uint256 _articleId) external view returns (bool) {
         uint256 expiry = accessExpiry[_user][_articleId];
-        if (expiry == 0) return false; // Never purchased
-        if (expiry == type(uint256).max) return true; // Permanent access
-        return block.timestamp <= expiry; // Check if not expired
+        return AccessLib.isValid(expiry, block.timestamp);
     }
     
     /**
@@ -197,7 +157,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @return provider Article publisher address
      * @return readCount Number of times article was read
      */
-    function getArticle(uint256 _articleId) external view articleExists(_articleId) returns (
+    function getArticle(uint256 _articleId) external view override articleExists(_articleId) returns (
         uint256 articleId,
         string memory title,
         bytes32 contentHash,

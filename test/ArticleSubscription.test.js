@@ -46,7 +46,7 @@ describe("ArticleSubscription", function () {
       
       await expect(
         articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.002"), "Another Title", contentHash, 0)
-      ).to.be.revertedWith("Service ID already exists");
+      ).to.be.revertedWith("Article already published");
     });
   });
 
@@ -204,6 +204,55 @@ describe("ArticleSubscription", function () {
     it("Should return false for hasValidAccess if never purchased", async function () {
       const hasAccess = await articleSubscription.hasValidAccess(reader.address, articleId);
       expect(hasAccess).to.be.false;
+    });
+
+    it("Should allow renewal and extend access period", async function () {
+      const accessDuration = 2 * 24 * 60 * 60; // 2 days
+      
+      // First purchase
+      const tx1 = await articleSubscription.connect(reader).purchaseArticle(articleId, { value: price });
+      const receipt1 = await tx1.wait();
+      const block1 = await ethers.provider.getBlock(receipt1.blockNumber);
+      const firstExpiry = block1.timestamp + accessDuration;
+      
+      let expiry = await articleSubscription.getAccessExpiry(reader.address, articleId);
+      expect(expiry).to.equal(firstExpiry);
+      
+      // Renew before expiry (should extend from current expiry)
+      await ethers.provider.send("evm_increaseTime", [1 * 24 * 60 * 60]); // Advance 1 day
+      await ethers.provider.send("evm_mine", []);
+      
+      const tx2 = await articleSubscription.connect(reader).purchaseArticle(articleId, { value: price });
+      const receipt2 = await tx2.wait();
+      const block2 = await ethers.provider.getBlock(receipt2.blockNumber);
+      const expectedExtendedExpiry = firstExpiry + accessDuration;
+      
+      expiry = await articleSubscription.getAccessExpiry(reader.address, articleId);
+      expect(expiry).to.equal(expectedExtendedExpiry);
+    });
+
+    it("Should restart from now if renewing after expiry", async function () {
+      const accessDuration = 1 * 24 * 60 * 60; // 1 day
+      const shortArticleId = 4;
+      await articleSubscription.connect(publisher).publishArticle(
+        shortArticleId, price, "Short Article", ethers.id("short"), accessDuration
+      );
+      
+      // Purchase
+      await articleSubscription.connect(reader).purchaseArticle(shortArticleId, { value: price });
+      
+      // Wait for expiry
+      await ethers.provider.send("evm_increaseTime", [2 * 24 * 60 * 60]); // Advance 2 days
+      await ethers.provider.send("evm_mine", []);
+      
+      // Renew after expiry (should start from now)
+      const tx = await articleSubscription.connect(reader).purchaseArticle(shortArticleId, { value: price });
+      const receipt = await tx.wait();
+      const block = await ethers.provider.getBlock(receipt.blockNumber);
+      const expectedNewExpiry = block.timestamp + accessDuration;
+      
+      const expiry = await articleSubscription.getAccessExpiry(reader.address, shortArticleId);
+      expect(expiry).to.equal(expectedNewExpiry);
     });
   });
 
