@@ -46,7 +46,7 @@ describe("ArticleSubscription", function () {
       
       await expect(
         articleSubscription.connect(publisher).publishArticle(1, ethers.parseEther("0.002"), "Another Title", contentHash, 0)
-      ).to.be.revertedWith("Service ID already exists");
+      ).to.be.revertedWith("Article already published");
     });
   });
 
