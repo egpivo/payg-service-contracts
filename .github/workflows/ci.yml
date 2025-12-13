@@ -21,9 +21,16 @@ jobs:
 
       - name: Install Foundry
         run: |
+          set -e
           curl -L https://foundry.paradigm.xyz | bash
-          source $HOME/.bashrc || true
           export PATH="$HOME/.foundry/bin:$PATH"
+          # The installation script should have installed foundryup, but if not, install it
+          if [ ! -f "$HOME/.foundry/bin/foundryup" ]; then
+            mkdir -p $HOME/.foundry/bin
+            curl -L https://github.com/foundry-rs/foundry/releases/latest/download/foundry_nightly_linux_amd64.tar.gz -o /tmp/foundry.tar.gz
+            tar -xzf /tmp/foundry.tar.gz -C $HOME/.foundry/bin
+            chmod +x $HOME/.foundry/bin/foundryup
+          fi
           $HOME/.foundry/bin/foundryup
         shell: bash
 
