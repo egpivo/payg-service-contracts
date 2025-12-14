@@ -56,6 +56,8 @@ jobs:
         run: forge build
 
       - name: Run Forge tests
+        env:
+          FOUNDRY_PROFILE: ci
         run: forge test -vvv --gas-report
 
       - name: Generate Foundry coverage report
