@@ -62,7 +62,7 @@ jobs:
 
       - name: Generate Foundry coverage report
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: forge coverage --report lcov --report summary
+        run: forge coverage --ir-minimum --report lcov --report summary
         continue-on-error: true
 
       - name: Upload Foundry coverage
