@@ -56,7 +56,9 @@ jobs:
         run: forge build
 
       - name: Run Forge tests
-        run: forge test --profile ci -vvv --gas-report
+        env:
+          FOUNDRY_PROFILE: ci
+        run: forge test -vvv --gas-report
 
       - name: Generate Foundry coverage report
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
