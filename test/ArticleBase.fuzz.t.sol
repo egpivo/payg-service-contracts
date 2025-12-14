@@ -37,7 +37,15 @@ contract ArticleBaseFuzzTest is Test {
         assertEq(provider, publisher, "Provider should match");
         assertEq(usageCount, 0, "Initial usage count should be 0");
         
-        (uint256 artId, string memory artTitle, bytes32 artContentHash, uint256 publishDate, uint256 accessDuration, uint256 artPrice, address artProvider, uint256 readCount) = articlePayPerRead.getArticle(articleId);
+        uint256 artId;
+        string memory artTitle;
+        bytes32 artContentHash;
+        uint256 publishDate;
+        uint256 accessDuration;
+        uint256 artPrice;
+        address artProvider;
+        uint256 readCount;
+        (artId, artTitle, artContentHash, publishDate, accessDuration, artPrice, artProvider, readCount) = articlePayPerRead.getArticle(articleId);
         assertEq(artId, articleId, "Article ID should match");
         assertEq(artPrice, price, "Article price should match");
         assertEq(artProvider, publisher, "Article provider should match");
@@ -142,7 +150,15 @@ contract ArticleBaseFuzzTest is Test {
         vm.prank(publisher);
         articlePayPerRead.publishArticle(articleId, price, title, contentHash);
         
-        (uint256 artId, string memory artTitle, bytes32 artContentHash, uint256 publishDate, uint256 accessDuration, uint256 artPrice, address artProvider, uint256 readCount) = articlePayPerRead.getArticle(articleId);
+        uint256 artId;
+        string memory artTitle;
+        bytes32 artContentHash;
+        uint256 publishDate;
+        uint256 accessDuration;
+        uint256 artPrice;
+        address artProvider;
+        uint256 readCount;
+        (artId, artTitle, artContentHash, publishDate, accessDuration, artPrice, artProvider, readCount) = articlePayPerRead.getArticle(articleId);
         
         assertEq(artId, articleId, "Article ID should match");
         assertEq(keccak256(bytes(artTitle)), keccak256(bytes(title)), "Title should match");
