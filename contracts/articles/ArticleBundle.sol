@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {AccessLib} from "../AccessLib.sol";
-import "./ArticleBase.sol";
+import {ArticleBase} from "./ArticleBase.sol";
 import {IArticleRegistry} from "./IArticleRegistry.sol";
 
 /**
