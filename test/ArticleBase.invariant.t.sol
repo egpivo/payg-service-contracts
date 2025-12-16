@@ -30,7 +30,7 @@ contract ArticleBaseHandler is Test {
     ) public {
         price = bound(price, 1, type(uint128).max);
         
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+        (,,,, bool exists) = target.services(articleId);
         if (exists) {
             return;
         }
@@ -77,7 +77,7 @@ contract ArticleBaseHandler is Test {
     }
     
     function readArticle(uint256 articleId, uint256 payment) public {
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+        (,,,, bool exists) = target.services(articleId);
         if (!exists) {
             return;
         }
@@ -115,7 +115,10 @@ contract ArticleBaseInvariantTest is Test {
         handler = new ArticleBaseHandler(target);
         
         for (uint256 i = 0; i < 5; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
             publishers.push(address(uint160(0x1000 + i)));
+            // forge-lint: disable-next-line(unsafe-typecast)
             readers.push(address(uint160(0x2000 + i)));
         }
         

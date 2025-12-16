@@ -72,6 +72,15 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @param _articleId The ID of the article
      */
     modifier withinAccessPeriod(uint256 _articleId) {
+        _withinAccessPeriod(_articleId);
+        _;
+    }
+    
+    /**
+     * @dev Internal function to check if user's access is still valid
+     * @param _articleId The ID of the article
+     */
+    function _withinAccessPeriod(uint256 _articleId) internal view {
         uint256 expiry = accessExpiry[msg.sender][_articleId];
         if (expiry == 0) {
             revert AccessNotGranted(msg.sender, _articleId);
@@ -79,7 +88,6 @@ contract ArticleSubscription is PayAsYouGoBase {
         if (block.timestamp > expiry) {
             revert AccessExpired(msg.sender, _articleId, expiry, block.timestamp);
         }
-        _;
     }
     
     /**

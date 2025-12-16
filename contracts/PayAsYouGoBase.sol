@@ -84,10 +84,18 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard {
      * @param _price The price to validate
      */
     modifier validPrice(uint256 _price) {
+        _validPrice(_price);
+        _;
+    }
+    
+    /**
+     * @dev Internal function to validate price
+     * @param _price The price to validate
+     */
+    function _validPrice(uint256 _price) internal pure {
         if (_price == 0) {
             revert PriceMustBeGreaterThanZero();
         }
-        _;
     }
     
     /**
