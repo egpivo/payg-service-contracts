@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {AccessLib} from "../AccessLib.sol";
-import "./ArticlePayPerRead.sol";
+import "../PayAsYouGoBase.sol";
+import "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBundle
@@ -35,8 +36,8 @@ contract ArticleBundle is PayAsYouGoBase {
         bool exists;
     }
     
-    // Reference to ArticlePayPerRead contract
-    ArticlePayPerRead public articleContract;
+    // Reference to article registry contract (implements IArticleRegistry)
+    IArticleRegistry public articleRegistry;
     
     // Mapping from bundle ID to Bundle
     mapping(uint256 => Bundle) public bundles;
@@ -53,10 +54,10 @@ contract ArticleBundle is PayAsYouGoBase {
     
     /**
      * @dev Constructor
-     * @param _articleContract Address of ArticlePayPerRead contract
+     * @param _articleRegistry Address of article registry contract (e.g., ArticlePayPerRead)
      */
-    constructor(ArticlePayPerRead _articleContract) {
-        articleContract = _articleContract;
+    constructor(IArticleRegistry _articleRegistry) {
+        articleRegistry = _articleRegistry;
     }
     
     /**
@@ -79,12 +80,22 @@ contract ArticleBundle is PayAsYouGoBase {
         
         // Verify all articles exist
         for (uint256 i = 0; i < _articleIds.length; i++) {
-            (, , , , bool exists) = articleContract.services(_articleIds[i]);
+            (, , , , bool exists) = articleRegistry.getArticleService(_articleIds[i]);
             require(exists, "Article does not exist");
         }
         
-        // Register bundle as a service
-        registerService(_bundleId, _price);
+        // Manually create service record (don't register bundle creator as provider)
+        // Bundle creator is just a curator, not a service provider
+        require(!services[_bundleId].exists, "Service ID already exists");
+        services[_bundleId] = Service({
+            id: _bundleId,
+            price: _price,
+            provider: address(0), // Bundle creator is not a provider
+            usageCount: 0,
+            exists: true
+        });
+        serviceIds.push(_bundleId);
+        emit ServiceRegistered(_bundleId, address(0), _price);
         
         // Store bundle data
         bundles[_bundleId] = Bundle({
@@ -119,13 +130,13 @@ contract ArticleBundle is PayAsYouGoBase {
         // Distribute revenue to each article's provider
         // Note: Providers can withdraw bundle earnings from this contract
         for (uint256 i = 0; i < articleCount; i++) {
-            (, , address provider, , ) = articleContract.services(bundle.articleIds[i]);
+            (, , address provider, , ) = articleRegistry.getArticleService(bundle.articleIds[i]);
             earnings[provider] += revenuePerArticle;
         }
         
         // Give remainder to first article's provider
         if (remainder > 0) {
-            (, , address firstProvider, , ) = articleContract.services(bundle.articleIds[0]);
+            (, , address firstProvider, , ) = articleRegistry.getArticleService(bundle.articleIds[0]);
             earnings[firstProvider] += remainder;
         }
         

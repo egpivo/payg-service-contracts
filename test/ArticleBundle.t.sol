@@ -4,9 +4,10 @@ pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
 import {ArticlePayPerRead} from "../contracts/articles/ArticlePayPerRead.sol";
 import {ArticleBundle} from "../contracts/articles/ArticleBundle.sol";
+import {IArticleRegistry} from "../contracts/articles/IArticleRegistry.sol";
 
 contract ArticleBundleTest is Test {
-    ArticlePayPerRead public articlePayPerRead;
+    IArticleRegistry public articleRegistry;
     ArticleBundle public articleBundle;
     address public publisher1;
     address public publisher2;
@@ -37,21 +38,22 @@ contract ArticleBundleTest is Test {
         vm.deal(buyer, 10 ether);
         vm.deal(bundleCreator, 10 ether);
         
-        // Deploy ArticlePayPerRead
-        articlePayPerRead = new ArticlePayPerRead();
+        // Deploy ArticlePayPerRead (cast to IArticleRegistry for dependency inversion)
+        ArticlePayPerRead articlePayPerReadImpl = new ArticlePayPerRead();
+        articleRegistry = IArticleRegistry(address(articlePayPerReadImpl));
         
-        // Deploy ArticleBundle
-        articleBundle = new ArticleBundle(articlePayPerRead);
+        // Deploy ArticleBundle with interface
+        articleBundle = new ArticleBundle(articleRegistry);
         
-        // Publish articles
+        // Publish articles (need to use concrete type for publishArticle)
         vm.prank(publisher1);
-        articlePayPerRead.publishArticle(articleId1, price1, "Article 1", keccak256("content1"));
+        articlePayPerReadImpl.publishArticle(articleId1, price1, "Article 1", keccak256("content1"));
         
         vm.prank(publisher2);
-        articlePayPerRead.publishArticle(articleId2, price2, "Article 2", keccak256("content2"));
+        articlePayPerReadImpl.publishArticle(articleId2, price2, "Article 2", keccak256("content2"));
         
         vm.prank(publisher3);
-        articlePayPerRead.publishArticle(articleId3, price3, "Article 3", keccak256("content3"));
+        articlePayPerReadImpl.publishArticle(articleId3, price3, "Article 3", keccak256("content3"));
     }
     
     function test_createBundle_success() public {
@@ -310,6 +312,50 @@ contract ArticleBundleTest is Test {
         
         assertEq(balanceAfter - balanceBefore, expectedEarnings);
         assertEq(articleBundle.earnings(publisher1), 0);
+    }
+    
+    function test_bundleCreator_notRegisteredAsProvider() public {
+        uint256[] memory articleIds = new uint256[](2);
+        articleIds[0] = articleId1;
+        articleIds[1] = articleId2;
+        
+        vm.prank(bundleCreator);
+        articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
+        
+        // Check that bundle creator is NOT registered as service provider
+        (, uint256 price, address provider, , bool exists) = 
+            articleBundle.services(bundleId);
+        
+        assertTrue(exists);
+        assertEq(provider, address(0)); // Bundle creator is not a provider
+        assertEq(price, bundlePrice);
+        
+        // Bundle creator should have zero earnings
+        uint256 creatorEarnings = articleBundle.earnings(bundleCreator);
+        assertEq(creatorEarnings, 0);
+    }
+    
+    function test_bundleCreator_noEarningsAfterPurchase() public {
+        uint256[] memory articleIds = new uint256[](2);
+        articleIds[0] = articleId1;
+        articleIds[1] = articleId2;
+        
+        vm.prank(bundleCreator);
+        articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
+        
+        vm.prank(buyer);
+        articleBundle.purchaseBundle{value: bundlePrice}(bundleId);
+        
+        // Bundle creator should still have zero earnings
+        uint256 creatorEarnings = articleBundle.earnings(bundleCreator);
+        assertEq(creatorEarnings, 0);
+        
+        // All revenue should go to article providers
+        uint256 revenuePerArticle = bundlePrice / 2;
+        uint256 remainder = bundlePrice % 2;
+        
+        assertEq(articleBundle.earnings(publisher1), revenuePerArticle + remainder);
+        assertEq(articleBundle.earnings(publisher2), revenuePerArticle);
     }
 }
 
