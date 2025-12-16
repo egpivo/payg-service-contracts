@@ -133,9 +133,10 @@ contract ArticleBaseInvariantTest is Test {
             (uint256 id, uint256 price, address provider, uint256 usageCount, bool exists) = target.services(articleId);
             
             if (exists) {
-                (uint256 artId, string memory title, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 artPrice, address artProvider, uint256 readCount) = target.getArticle(articleId);
+                (uint256 artId,,, uint256 publishDate,, uint256 artPrice, address artProvider, uint256 readCount) = target.getArticle(articleId);
                 
                 assertEq(artId, articleId, "Article ID mismatch");
+                assertEq(artId, id, "Service ID must match article ID");
                 assertEq(artPrice, price, "Price mismatch");
                 assertEq(artProvider, provider, "Provider mismatch");
                 assertEq(readCount, usageCount, "Usage count mismatch");
@@ -150,7 +151,7 @@ contract ArticleBaseInvariantTest is Test {
         for (uint256 i = 0; i < articleCount; i++) {
             uint256 articleId = handler.publishedArticleIds(i);
             
-            (uint256 artId, string memory title, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 price, address provider, uint256 readCount) = target.getArticle(articleId);
+            (,, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 price, address provider,) = target.getArticle(articleId);
             
             address expectedPublisher = handler.articlePublishers(articleId);
             uint256 expectedPrice = handler.articlePrices(articleId);
@@ -208,7 +209,7 @@ contract ArticleBaseInvariantTest is Test {
         
         for (uint256 i = 0; i < articleCount; i++) {
             uint256 articleId = handler.publishedArticleIds(i);
-            (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+            (uint256 id,, address provider, uint256 usageCount, bool exists) = target.services(articleId);
             
             assertTrue(exists, "Published article must exist as service");
             assertEq(id, articleId, "Service ID must match article ID");

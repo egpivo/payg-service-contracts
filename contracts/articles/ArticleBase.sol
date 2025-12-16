@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../PayAsYouGoBase.sol";
-import "./IArticleRegistry.sol";
+import {IArticleRegistry} from "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBase

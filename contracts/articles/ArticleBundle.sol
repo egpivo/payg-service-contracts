@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {AccessLib} from "../AccessLib.sol";
 import "./ArticleBase.sol";
-import "./IArticleRegistry.sol";
+import {IArticleRegistry} from "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBundle
@@ -40,7 +40,7 @@ contract ArticleBundle is ArticleBase {
     
     // External article registry (e.g., ArticlePayPerRead / ArticleSubscription).
     // Trust boundary: this contract assumes the registry's provider mapping is correct.
-    IArticleRegistry public immutable articleRegistry;
+    IArticleRegistry public immutable ARTICLE_REGISTRY;
     
     // Mapping from bundle ID to Bundle
     mapping(uint256 => Bundle) public bundles;
@@ -61,7 +61,7 @@ contract ArticleBundle is ArticleBase {
      * @notice ArticleBundle inherits from ArticleBase but uses external registry for articles
      */
     constructor(IArticleRegistry _articleRegistry) {
-        articleRegistry = _articleRegistry;
+        ARTICLE_REGISTRY = _articleRegistry;
     }
     
     /**
@@ -76,7 +76,7 @@ contract ArticleBundle is ArticleBase {
         uint256 usageCount,
         bool exists
     ) {
-        return articleRegistry.getArticleService(_articleId);
+        return ARTICLE_REGISTRY.getArticleService(_articleId);
     }
     
     /**
@@ -123,7 +123,7 @@ contract ArticleBundle is ArticleBase {
         
         // Verify all articles exist and have valid provider
         for (uint256 i = 0; i < _articleIds.length; i++) {
-            (, , address provider, , bool exists) = articleRegistry.getArticleService(_articleIds[i]);
+            (, , address provider, , bool exists) = ARTICLE_REGISTRY.getArticleService(_articleIds[i]);
             if (!exists) {
                 revert ArticleDoesNotExistInRegistry(_articleIds[i]);
             }
@@ -184,7 +184,7 @@ contract ArticleBundle is ArticleBase {
         // Distribute revenue to each article's provider
         // Note: Providers can withdraw bundle earnings from this contract
         for (uint256 i = 0; i < articleCount; i++) {
-            (, , address provider, , ) = articleRegistry.getArticleService(bundle.articleIds[i]);
+            (, , address provider, , ) = ARTICLE_REGISTRY.getArticleService(bundle.articleIds[i]);
             if (provider == address(0)) {
                 revert InvalidProvider(provider);
             }
@@ -193,7 +193,7 @@ contract ArticleBundle is ArticleBase {
         
         // Give remainder to first article's provider
         if (remainder > 0) {
-            (, , address firstProvider, , ) = articleRegistry.getArticleService(bundle.articleIds[0]);
+            (, , address firstProvider, , ) = ARTICLE_REGISTRY.getArticleService(bundle.articleIds[0]);
             if (firstProvider == address(0)) {
                 revert InvalidProvider(firstProvider);
             }
