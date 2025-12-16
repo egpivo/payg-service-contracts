@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../PayAsYouGoBase.sol";
+import "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBase
@@ -14,7 +15,29 @@ import "../PayAsYouGoBase.sol";
  * 
  * Child contracts should implement their own payment and reading patterns.
  */
-abstract contract ArticleBase is PayAsYouGoBase {
+abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
+    
+    /**
+     * @dev Implementation of IArticleRegistry interface
+     * @notice Wraps the services mapping to match the interface signature
+     *         Can be overridden by child contracts to use external registry
+     */
+    function getArticleService(uint256 _articleId) external view virtual override returns (
+        uint256 id,
+        uint256 price,
+        address provider,
+        uint256 usageCount,
+        bool exists
+    ) {
+        Service memory service = services[_articleId];
+        return (
+            service.id,
+            service.price,
+            service.provider,
+            service.usageCount,
+            service.exists
+        );
+    }
     
     // Article structure
     struct Article {
