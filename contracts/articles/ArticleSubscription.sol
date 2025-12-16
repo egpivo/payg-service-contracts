@@ -58,13 +58,21 @@ contract ArticleSubscription is PayAsYouGoBase {
      *         publishDate != 0 is a reliable check (block.timestamp is never 0)
      */
     modifier articleExists(uint256 _articleId) {
+        _articleExists(_articleId);
+        _;
+    }
+    
+    /**
+     * @dev Internal function to check if article exists
+     * @param _articleId The ID of the article to check
+     */
+    function _articleExists(uint256 _articleId) internal view {
         if (!services[_articleId].exists) {
             revert ArticleDoesNotExist(_articleId);
         }
         if (articles[_articleId].publishDate == 0) {
             revert ArticleDataNotFound(_articleId);
         }
-        _;
     }
     
     /**
