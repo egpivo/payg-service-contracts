@@ -191,6 +191,9 @@ contract ArticleBaseFuzzTest is Test {
         articlePayPerRead.publishArticle(articleId, price, title, contentHash);
         
         for (uint256 i = 0; i < numReads; i++) {
+            // casting to 'uint160' is safe because we're only using small values (0x2000 + i)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             address user = address(uint160(0x2000 + i));
             vm.deal(user, price);
             vm.prank(user);
