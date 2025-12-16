@@ -110,10 +110,13 @@ contract PayAsYouGoBaseInvariantTest is Test {
             // forge-lint: disable-next-line(unsafe-typecast)
             // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
             // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
-            providers.push(address(uint160(0x1000 + i)));
-            // forge-lint: disable-next-line(unsafe-typecast)
             // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
             // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
+            providers.push(address(uint160(0x1000 + i)));
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             users.push(address(uint160(0x2000 + i)));
         }
         
