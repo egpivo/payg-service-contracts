@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {AccessLib} from "../AccessLib.sol";
-import "../PayAsYouGoBase.sol";
+import "./ArticleBase.sol";
 import "./IArticleRegistry.sol";
 
 /**
@@ -14,7 +14,7 @@ import "./IArticleRegistry.sol";
  * - One payment grants access to all articles in bundle
  * - Revenue sharing: equal split or simple bps per article
  */
-contract ArticleBundle is PayAsYouGoBase {
+contract ArticleBundle is ArticleBase {
     
     // Simple reentrancy guard (avoid pulling OZ for this learning repo)
     uint256 private _locked = 1;
@@ -36,7 +36,8 @@ contract ArticleBundle is PayAsYouGoBase {
         bool exists;
     }
     
-    // Reference to article registry contract (implements IArticleRegistry)
+    // Reference to external article registry contract (implements IArticleRegistry)
+    // Note: We override getArticleService() to use this external registry instead of our own
     IArticleRegistry public articleRegistry;
     
     // Mapping from bundle ID to Bundle
@@ -55,9 +56,25 @@ contract ArticleBundle is PayAsYouGoBase {
     /**
      * @dev Constructor
      * @param _articleRegistry Address of article registry contract (e.g., ArticlePayPerRead)
+     * @notice ArticleBundle inherits from ArticleBase but uses external registry for articles
      */
     constructor(IArticleRegistry _articleRegistry) {
         articleRegistry = _articleRegistry;
+    }
+    
+    /**
+     * @dev Override getArticleService to use external article registry
+     * @notice This allows ArticleBundle to access articles from external contract
+     *         instead of managing its own articles
+     */
+    function getArticleService(uint256 _articleId) external view override returns (
+        uint256 id,
+        uint256 price,
+        address provider,
+        uint256 usageCount,
+        bool exists
+    ) {
+        return articleRegistry.getArticleService(_articleId);
     }
     
     /**

@@ -20,8 +20,9 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
     /**
      * @dev Implementation of IArticleRegistry interface
      * @notice Wraps the services mapping to match the interface signature
+     *         Can be overridden by child contracts to use external registry
      */
-    function getArticleService(uint256 _articleId) external view override returns (
+    function getArticleService(uint256 _articleId) external view virtual override returns (
         uint256 id,
         uint256 price,
         address provider,
