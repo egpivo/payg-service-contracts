@@ -64,6 +64,7 @@ jobs:
         run: |
           # Exclude fuzz tests from coverage (they are expensive under instrumentation)
           forge coverage \
+            --ir-minimum \          
             --report lcov \
             --report summary \
             --no-match-path "test/**.fuzz.t.sol"
