@@ -72,11 +72,19 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard {
      * @param _serviceId The ID of the service
      */
     modifier onlyProvider(uint256 _serviceId) {
+        _onlyProvider(_serviceId);
+        _;
+    }
+    
+    /**
+     * @dev Internal function to check if caller is the provider of a service
+     * @param _serviceId The ID of the service
+     */
+    function _onlyProvider(uint256 _serviceId) internal view {
         address provider = services[_serviceId].provider;
         if (provider != msg.sender) {
             revert OnlyProviderCanCall(msg.sender, provider);
         }
-        _;
     }
     
     /**
