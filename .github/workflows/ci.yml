@@ -27,7 +27,6 @@ jobs:
       - name: Show Forge version
         run: forge --version
 
-      # Cache Foundry artifacts + deps
       - name: Cache Foundry
         uses: actions/cache@v4
         with:
@@ -56,18 +55,11 @@ jobs:
           FOUNDRY_PROFILE: ci
         run: forge test --gas-report
 
-      # Coverage only on main/master. Avoid viaIR + exclude fuzz tests to prevent CI cancellation.
       - name: Generate Foundry coverage report (lcov + summary)
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         env:
           FOUNDRY_PROFILE: ci
-        run: |
-          # Exclude fuzz tests from coverage (they are expensive under instrumentation)
-          forge coverage \
-            --ir-minimum \          
-            --report lcov \
-            --report summary \
-            --no-match-path "test/**.fuzz.t.sol"
+        run: forge coverage --ir-minimum --report lcov --report summary --no-match-path "test/**.fuzz.t.sol"
 
       - name: Upload Foundry coverage
         if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
