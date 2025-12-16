@@ -66,7 +66,6 @@ contract ArticleSubscriptionTest is Test {
         articleSubscription.publishArticle(ARTICLE_ID, PRICE, TITLE, CONTENT_HASH, ACCESS_DURATION);
 
         // First purchase
-        uint256 purchaseTime1 = block.timestamp;
         vm.prank(reader);
         articleSubscription.purchaseArticle{value: PRICE}(ARTICLE_ID);
         

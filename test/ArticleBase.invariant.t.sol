@@ -212,7 +212,7 @@ contract ArticleBaseInvariantTest is Test {
         
         for (uint256 i = 0; i < articleCount; i++) {
             uint256 articleId = handler.publishedArticleIds(i);
-            (uint256 id,, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+            (uint256 id,,,, bool exists) = target.services(articleId);
             
             assertTrue(exists, "Published article must exist as service");
             assertEq(id, articleId, "Service ID must match article ID");
