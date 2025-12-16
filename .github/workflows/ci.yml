@@ -11,7 +11,7 @@ jobs:
   foundry-test:
     name: Foundry Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -27,6 +27,19 @@ jobs:
       - name: Show Forge version
         run: forge --version
 
+      # Cache Foundry artifacts + deps
+      - name: Cache Foundry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/foundry
+            out
+            cache
+            lib
+          key: ${{ runner.os }}-foundry-${{ hashFiles('foundry.toml', 'remappings.txt', '**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Install dependencies
         run: |
           if [ ! -d lib/forge-std ]; then
@@ -34,6 +47,8 @@ jobs:
           fi
 
       - name: Build contracts
+        env:
+          FOUNDRY_PROFILE: ci
         run: forge build
 
       - name: Run Forge tests
@@ -41,10 +56,17 @@ jobs:
           FOUNDRY_PROFILE: ci
         run: forge test --gas-report
 
-      - name: Generate Foundry coverage report
+      # Coverage only on main/master. Avoid viaIR + exclude fuzz tests to prevent CI cancellation.
+      - name: Generate Foundry coverage report (lcov + summary)
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: forge coverage --ir-minimum --report lcov --report summary
-        continue-on-error: true
+        env:
+          FOUNDRY_PROFILE: ci
+        run: |
+          # Exclude fuzz tests from coverage (they are expensive under instrumentation)
+          forge coverage \
+            --report lcov \
+            --report summary \
+            --no-match-path "test/**.fuzz.t.sol"
 
       - name: Upload Foundry coverage
         if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
