@@ -2,9 +2,19 @@ name: Foundry Tests
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches:
+      - main
+      - master
+      - develop
+      - bugfix/**
+      - bugfix/article-bundle-expiry
   pull_request:
-    branches: [ main, master, develop ]
+    branches:
+      - main
+      - master
+      - develop
+      - bugfix/**
+      - bugfix/article-bundle-expiry
   workflow_dispatch:
 
 jobs:
