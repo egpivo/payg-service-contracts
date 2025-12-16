@@ -43,6 +43,13 @@ contract ArticleSubscription is PayAsYouGoBase {
     event ArticleRead(uint256 indexed articleId, address indexed reader, uint256 timestamp);
     event ArticlePurchased(uint256 indexed articleId, address indexed buyer, uint256 expiry);
     
+    // Custom Errors
+    error ArticleDoesNotExist(uint256 articleId);
+    error ArticleDataNotFound(uint256 articleId);
+    error ArticleAlreadyPublished(uint256 articleId);
+    error AccessNotGranted(address user, uint256 articleId);
+    error AccessExpired(address user, uint256 articleId, uint256 expiry, uint256 currentTime);
+    
     // Modifiers
     /**
      * @dev Modifier to check if article exists
@@ -51,8 +58,12 @@ contract ArticleSubscription is PayAsYouGoBase {
      *         publishDate != 0 is a reliable check (block.timestamp is never 0)
      */
     modifier articleExists(uint256 _articleId) {
-        require(services[_articleId].exists, "Article does not exist");
-        require(articles[_articleId].publishDate != 0, "Article data not found");
+        if (!services[_articleId].exists) {
+            revert ArticleDoesNotExist(_articleId);
+        }
+        if (articles[_articleId].publishDate == 0) {
+            revert ArticleDataNotFound(_articleId);
+        }
         _;
     }
     
@@ -62,8 +73,12 @@ contract ArticleSubscription is PayAsYouGoBase {
      */
     modifier withinAccessPeriod(uint256 _articleId) {
         uint256 expiry = accessExpiry[msg.sender][_articleId];
-        require(expiry > 0, "Access not granted");
-        require(block.timestamp <= expiry, "Access expired");
+        if (expiry == 0) {
+            revert AccessNotGranted(msg.sender, _articleId);
+        }
+        if (block.timestamp > expiry) {
+            revert AccessExpired(msg.sender, _articleId, expiry, block.timestamp);
+        }
         _;
     }
     
@@ -74,6 +89,7 @@ contract ArticleSubscription is PayAsYouGoBase {
      * @param _title Title of the article
      * @param _contentHash Hash of the article content (for verification)
      * @param _accessDuration Access duration in seconds (0 = permanent access)
+     * @notice Only service providers or contract owner can publish articles
      */
     function publishArticle(
         uint256 _articleId,
@@ -83,7 +99,9 @@ contract ArticleSubscription is PayAsYouGoBase {
         uint256 _accessDuration
     ) external {
         // Prevent duplicate publishing (even though registerService will also check)
-        require(articles[_articleId].publishDate == 0, "Article already published");
+        if (articles[_articleId].publishDate != 0) {
+            revert ArticleAlreadyPublished(_articleId);
+        }
         
         // Use base contract's registerService
         registerService(_articleId, _price);

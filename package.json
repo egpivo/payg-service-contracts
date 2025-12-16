@@ -10,6 +10,7 @@
     "node": "hardhat node",
     "deploy": "hardhat run scripts/deploy.js",
     "foundry:install": "./scripts/install-foundry.sh",
+    "openzeppelin:install": "./scripts/install-openzeppelin.sh",
     "foundry:test": "./scripts/test-foundry.sh",
     "foundry:test:verbose": "./scripts/test-foundry.sh -vv",
     "foundry:test:gas": "./scripts/test-foundry.sh --gas-report"

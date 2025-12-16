@@ -1,4 +1,4 @@
-.PHONY: help install compile test coverage deploy node clean foundry-install foundry-test foundry-test-verbose foundry-test-gas
+.PHONY: help install compile test coverage deploy node clean foundry-install openzeppelin-install foundry-test foundry-test-verbose foundry-test-gas
 
 # Default target
 help:
@@ -14,6 +14,7 @@ help:
 	@echo ""
 	@echo "Foundry targets:"
 	@echo "  make foundry-install      - Install Foundry"
+	@echo "  make openzeppelin-install - Install OpenZeppelin Contracts"
 	@echo "  make foundry-test        - Run Foundry tests"
 	@echo "  make foundry-test-verbose - Run Foundry tests with verbose output"
 	@echo "  make foundry-test-gas    - Run Foundry tests with gas report"
@@ -67,6 +68,11 @@ run: compile test deploy
 foundry-install:
 	@echo "Installing Foundry..."
 	@./scripts/install-foundry.sh
+
+# OpenZeppelin Contracts installation
+openzeppelin-install:
+	@echo "Installing OpenZeppelin Contracts..."
+	@./scripts/install-openzeppelin.sh
 
 # Foundry tests
 foundry-test:
