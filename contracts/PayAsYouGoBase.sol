@@ -61,10 +61,18 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard {
      * @param _serviceId The ID of the service to check
      */
     modifier serviceExists(uint256 _serviceId) {
+        _serviceExists(_serviceId);
+        _;
+    }
+    
+    /**
+     * @dev Internal function to check if service exists
+     * @param _serviceId The ID of the service to check
+     */
+    function _serviceExists(uint256 _serviceId) internal view {
         if (!services[_serviceId].exists) {
             revert ServiceDoesNotExist(_serviceId);
         }
-        _;
     }
     
     /**
