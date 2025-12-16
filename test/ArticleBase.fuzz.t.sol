@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 import {ArticlePayPerRead} from "../contracts/articles/ArticlePayPerRead.sol";
+import {ArticleBase} from "../contracts/articles/ArticleBase.sol";
+import {PayAsYouGoBase} from "../contracts/PayAsYouGoBase.sol";
 
 contract ArticleBaseFuzzTest is Test {
     ArticlePayPerRead public articlePayPerRead;
@@ -70,7 +72,7 @@ contract ArticleBaseFuzzTest is Test {
         articlePayPerRead.publishArticle(articleId, price1, title1, contentHash1);
         
         vm.prank(publisher);
-        vm.expectRevert("Article already published");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBase.ArticleAlreadyPublished.selector, articleId));
         articlePayPerRead.publishArticle(articleId, price2, title2, contentHash2);
     }
     
@@ -80,7 +82,7 @@ contract ArticleBaseFuzzTest is Test {
         bytes32 contentHash
     ) public {
         vm.prank(publisher);
-        vm.expectRevert("Price must be greater than 0");
+        vm.expectRevert(PayAsYouGoBase.PriceMustBeGreaterThanZero.selector);
         articlePayPerRead.publishArticle(articleId, 0, title, contentHash);
     }
     
@@ -123,7 +125,7 @@ contract ArticleBaseFuzzTest is Test {
         
         vm.deal(reader, payment);
         vm.prank(reader);
-        vm.expectRevert("Insufficient payment");
+        vm.expectRevert(abi.encodeWithSelector(PayAsYouGoBase.InsufficientPayment.selector, articleId, price, payment));
         articlePayPerRead.readArticle{value: payment}(articleId);
     }
     
@@ -135,7 +137,7 @@ contract ArticleBaseFuzzTest is Test {
         
         vm.deal(reader, payment);
         vm.prank(reader);
-        vm.expectRevert("Article does not exist");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBase.ArticleDoesNotExist.selector, articleId));
         articlePayPerRead.readArticle{value: payment}(articleId);
     }
     
@@ -171,7 +173,7 @@ contract ArticleBaseFuzzTest is Test {
     }
     
     function testFuzz_getArticle_nonexistentArticleReverts(uint256 articleId) public {
-        vm.expectRevert("Article does not exist");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBase.ArticleDoesNotExist.selector, articleId));
         articlePayPerRead.getArticle(articleId);
     }
     
