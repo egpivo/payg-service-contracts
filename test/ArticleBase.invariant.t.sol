@@ -30,7 +30,7 @@ contract ArticleBaseHandler is Test {
     ) public {
         price = bound(price, 1, type(uint128).max);
         
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+        (,,,, bool exists) = target.services(articleId);
         if (exists) {
             return;
         }
@@ -77,7 +77,7 @@ contract ArticleBaseHandler is Test {
     }
     
     function readArticle(uint256 articleId, uint256 payment) public {
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+        (,,,, bool exists) = target.services(articleId);
         if (!exists) {
             return;
         }
@@ -115,7 +115,13 @@ contract ArticleBaseInvariantTest is Test {
         handler = new ArticleBaseHandler(target);
         
         for (uint256 i = 0; i < 5; i++) {
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             publishers.push(address(uint160(0x1000 + i)));
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             readers.push(address(uint160(0x2000 + i)));
         }
         
@@ -130,9 +136,10 @@ contract ArticleBaseInvariantTest is Test {
             (uint256 id, uint256 price, address provider, uint256 usageCount, bool exists) = target.services(articleId);
             
             if (exists) {
-                (uint256 artId, string memory title, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 artPrice, address artProvider, uint256 readCount) = target.getArticle(articleId);
+                (uint256 artId,,, uint256 publishDate,, uint256 artPrice, address artProvider, uint256 readCount) = target.getArticle(articleId);
                 
                 assertEq(artId, articleId, "Article ID mismatch");
+                assertEq(artId, id, "Service ID must match article ID");
                 assertEq(artPrice, price, "Price mismatch");
                 assertEq(artProvider, provider, "Provider mismatch");
                 assertEq(readCount, usageCount, "Usage count mismatch");
@@ -147,7 +154,7 @@ contract ArticleBaseInvariantTest is Test {
         for (uint256 i = 0; i < articleCount; i++) {
             uint256 articleId = handler.publishedArticleIds(i);
             
-            (uint256 artId, string memory title, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 price, address provider, uint256 readCount) = target.getArticle(articleId);
+            (,, bytes32 contentHash, uint256 publishDate, uint256 accessDuration, uint256 price, address provider,) = target.getArticle(articleId);
             
             address expectedPublisher = handler.articlePublishers(articleId);
             uint256 expectedPrice = handler.articlePrices(articleId);
@@ -205,7 +212,7 @@ contract ArticleBaseInvariantTest is Test {
         
         for (uint256 i = 0; i < articleCount; i++) {
             uint256 articleId = handler.publishedArticleIds(i);
-            (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(articleId);
+            (uint256 id,,,, bool exists) = target.services(articleId);
             
             assertTrue(exists, "Published article must exist as service");
             assertEq(id, articleId, "Service ID must match article ID");

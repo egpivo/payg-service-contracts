@@ -23,7 +23,7 @@ contract PayAsYouGoBaseHandler is Test {
     function registerService(uint256 serviceId, uint256 price) public {
         price = bound(price, 1, type(uint128).max);
         
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(serviceId);
+        (,,,, bool exists) = target.services(serviceId);
         if (exists) {
             return;
         }
@@ -43,7 +43,7 @@ contract PayAsYouGoBaseHandler is Test {
     }
     
     function useService(uint256 serviceId, uint256 payment) public {
-        (uint256 id, uint256 svcPrice, address provider, uint256 usageCount, bool exists) = target.services(serviceId);
+        (,,,, bool exists) = target.services(serviceId);
         if (!exists) {
             return;
         }
@@ -107,7 +107,16 @@ contract PayAsYouGoBaseInvariantTest is Test {
         handler = new PayAsYouGoBaseHandler(target);
         
         for (uint256 i = 0; i < 5; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             providers.push(address(uint160(0x1000 + i)));
+            // casting to 'uint160' is safe because we're only using small values (0x1000-0x1004, 0x2000-0x2004)
+            // which are well within uint160 range (max 0xffffffffffffffffffffffffffffffffffffffff)
+            // forge-lint: disable-next-line(unsafe-typecast)
             users.push(address(uint160(0x2000 + i)));
         }
         
@@ -132,7 +141,7 @@ contract PayAsYouGoBaseInvariantTest is Test {
         
         for (uint256 i = 0; i < serviceCount; i++) {
             uint256 serviceId = target.serviceIds(i);
-            (uint256 id, uint256 price, address provider, uint256 usageCount, bool exists) = target.services(serviceId);
+            (,,, uint256 usageCount, bool exists) = target.services(serviceId);
             if (exists) {
                 uint256 expectedUsageCount = handler.serviceUsageCount(serviceId);
                 assertEq(usageCount, expectedUsageCount);
@@ -154,7 +163,7 @@ contract PayAsYouGoBaseInvariantTest is Test {
         
         for (uint256 i = 0; i < serviceCount; i++) {
             uint256 serviceId = target.serviceIds(i);
-            (uint256 id, uint256 price, address provider, uint256 usageCount, bool exists) = target.services(serviceId);
+            (, uint256 price, address provider,, bool exists) = target.services(serviceId);
             if (exists) {
                 address expectedProvider = handler.serviceProviders(serviceId);
                 uint256 expectedPrice = handler.servicePrices(serviceId);

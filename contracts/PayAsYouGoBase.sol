@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 /**
  * @title PayAsYouGoBase
  * @dev Base contract for pay-as-you-go services
@@ -13,7 +16,16 @@ pragma solidity ^0.8.0;
  * 2. User pays once (pay-per-use) → usageCount +1
  * 3. Provider withdraws earnings
  */
-contract PayAsYouGoBase {
+contract PayAsYouGoBase is Ownable, ReentrancyGuard {
+    
+    // Custom Errors
+    error ServiceDoesNotExist(uint256 serviceId);
+    error OnlyProviderCanCall(address caller, address provider);
+    error PriceMustBeGreaterThanZero();
+    error ServiceIdAlreadyExists(uint256 serviceId);
+    error InsufficientPayment(uint256 serviceId, uint256 required, uint256 sent);
+    error NoEarningsToWithdraw(address provider);
+    error TransferFailed(address recipient, uint256 amount);
     
     // Service structure
     struct Service {
@@ -38,14 +50,29 @@ contract PayAsYouGoBase {
     event ServiceUsed(uint256 indexed serviceId, address indexed user, uint256 newUsageCount);
     event Withdrawn(address indexed provider, uint256 amount);
     
+    /**
+     * @dev Constructor that sets the deployer as the initial owner
+     */
+    constructor() Ownable(msg.sender) {}
+    
     // Modifiers
     /**
      * @dev Modifier to check if service exists
      * @param _serviceId The ID of the service to check
      */
     modifier serviceExists(uint256 _serviceId) {
-        require(services[_serviceId].exists, "Service does not exist");
+        _serviceExists(_serviceId);
         _;
+    }
+    
+    /**
+     * @dev Internal function to check if service exists
+     * @param _serviceId The ID of the service to check
+     */
+    function _serviceExists(uint256 _serviceId) internal view {
+        if (!services[_serviceId].exists) {
+            revert ServiceDoesNotExist(_serviceId);
+        }
     }
     
     /**
@@ -53,8 +80,19 @@ contract PayAsYouGoBase {
      * @param _serviceId The ID of the service
      */
     modifier onlyProvider(uint256 _serviceId) {
-        require(services[_serviceId].provider == msg.sender, "Only provider can call this");
+        _onlyProvider(_serviceId);
         _;
+    }
+    
+    /**
+     * @dev Internal function to check if caller is the provider of a service
+     * @param _serviceId The ID of the service
+     */
+    function _onlyProvider(uint256 _serviceId) internal view {
+        address provider = services[_serviceId].provider;
+        if (provider != msg.sender) {
+            revert OnlyProviderCanCall(msg.sender, provider);
+        }
     }
     
     /**
@@ -62,17 +100,30 @@ contract PayAsYouGoBase {
      * @param _price The price to validate
      */
     modifier validPrice(uint256 _price) {
-        require(_price > 0, "Price must be greater than 0");
+        _validPrice(_price);
         _;
+    }
+    
+    /**
+     * @dev Internal function to validate price
+     * @param _price The price to validate
+     */
+    function _validPrice(uint256 _price) internal pure {
+        if (_price == 0) {
+            revert PriceMustBeGreaterThanZero();
+        }
     }
     
     /**
      * @dev Register a new service
      * @param _serviceId Unique identifier for the service
      * @param _price Price per use in wei
+     * @notice Only service providers or contract owner can register services
      */
     function registerService(uint256 _serviceId, uint256 _price) public virtual validPrice(_price) {
-        require(!services[_serviceId].exists, "Service ID already exists");
+        if (services[_serviceId].exists) {
+            revert ServiceIdAlreadyExists(_serviceId);
+        }
         
         services[_serviceId] = Service({
             id: _serviceId,
@@ -94,7 +145,9 @@ contract PayAsYouGoBase {
     function useService(uint256 _serviceId) public virtual payable serviceExists(_serviceId) {
         Service storage service = services[_serviceId];
         
-        require(msg.value >= service.price, "Insufficient payment");
+        if (msg.value < service.price) {
+            revert InsufficientPayment(_serviceId, service.price, msg.value);
+        }
         
         // Increment usage count
         service.usageCount += 1;
@@ -107,7 +160,11 @@ contract PayAsYouGoBase {
         
         // Refund excess payment if any
         if (msg.value > service.price) {
-            payable(msg.sender).transfer(msg.value - service.price);
+            uint256 refundAmount = msg.value - service.price;
+            (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+            if (!success) {
+                revert TransferFailed(msg.sender, refundAmount);
+            }
         }
         
         emit ServiceUsed(_serviceId, msg.sender, service.usageCount);
@@ -115,16 +172,26 @@ contract PayAsYouGoBase {
     
     /**
      * @dev Withdraw earnings for a provider
+     * @notice Follows Checks-Effects-Interactions (CEI) pattern to prevent reentrancy
+     *         Checks: Verify balance > 0
+     *         Effects: Reset earnings to 0
+     *         Interactions: Transfer funds
      */
-    function withdraw() public virtual {
+    function withdraw() public virtual nonReentrant {
+        // Checks: Verify balance
         uint256 amount = earnings[msg.sender];
-        require(amount > 0, "No earnings to withdraw");
+        if (amount == 0) {
+            revert NoEarningsToWithdraw(msg.sender);
+        }
         
-        // Reset earnings before transfer to prevent reentrancy
+        // Effects: Reset earnings before transfer to prevent reentrancy
         earnings[msg.sender] = 0;
         
-        // Transfer earnings to provider
-        payable(msg.sender).transfer(amount);
+        // Interactions: Transfer earnings to provider
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        if (!success) {
+            revert TransferFailed(msg.sender, amount);
+        }
         
         emit Withdrawn(msg.sender, amount);
     }

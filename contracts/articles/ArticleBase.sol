@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../PayAsYouGoBase.sol";
-import "./IArticleRegistry.sol";
+import {PayAsYouGoBase} from "../PayAsYouGoBase.sol";
+import {IArticleRegistry} from "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBase
@@ -54,6 +54,11 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
     // Events
     event ArticlePublished(uint256 indexed articleId, string title, address indexed publisher);
     
+    // Custom Errors
+    error ArticleDoesNotExist(uint256 articleId);
+    error ArticleDataNotFound(uint256 articleId);
+    error ArticleAlreadyPublished(uint256 articleId);
+    
     // Modifiers
     /**
      * @dev Modifier to check if article exists
@@ -62,9 +67,21 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
      *         publishDate != 0 is a reliable check (block.timestamp is never 0)
      */
     modifier articleExists(uint256 _articleId) {
-        require(services[_articleId].exists, "Article does not exist");
-        require(articles[_articleId].publishDate != 0, "Article data not found");
+        _articleExists(_articleId);
         _;
+    }
+    
+    /**
+     * @dev Internal function to check if article exists
+     * @param _articleId The ID of the article to check
+     */
+    function _articleExists(uint256 _articleId) internal view {
+        if (!services[_articleId].exists) {
+            revert ArticleDoesNotExist(_articleId);
+        }
+        if (articles[_articleId].publishDate == 0) {
+            revert ArticleDataNotFound(_articleId);
+        }
     }
     
     /**
@@ -76,6 +93,16 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
      * @param _accessDuration Access duration in seconds (0 = not applicable)
      * @notice This is an internal function that child contracts should call from their public publishArticle
      */
+    /**
+     * @dev Internal function to publish an article
+     * @param _articleId Unique identifier for the article
+     * @param _price Price to read the article
+     * @param _title Title of the article
+     * @param _contentHash Hash of the article content (for verification)
+     * @param _accessDuration Access duration in seconds (0 = not applicable)
+     * @notice This is an internal function that child contracts should call from their public publishArticle
+     *         Only service providers or contract owner can publish articles
+     */
     function _publishArticle(
         uint256 _articleId,
         uint256 _price,
@@ -84,7 +111,9 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
         uint256 _accessDuration
     ) internal {
         // Prevent duplicate publishing (even though registerService will also check)
-        require(articles[_articleId].publishDate == 0, "Article already published");
+        if (articles[_articleId].publishDate != 0) {
+            revert ArticleAlreadyPublished(_articleId);
+        }
         
         // Use base contract's registerService
         registerService(_articleId, _price);

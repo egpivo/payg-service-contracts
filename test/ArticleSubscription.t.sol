@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ArticleSubscription} from "../contracts/articles/ArticleSubscription.sol";
 
 contract ArticleSubscriptionTest is Test {
@@ -66,7 +66,6 @@ contract ArticleSubscriptionTest is Test {
         articleSubscription.publishArticle(ARTICLE_ID, PRICE, TITLE, CONTENT_HASH, ACCESS_DURATION);
 
         // First purchase
-        uint256 purchaseTime1 = block.timestamp;
         vm.prank(reader);
         articleSubscription.purchaseArticle{value: PRICE}(ARTICLE_ID);
         
@@ -111,7 +110,7 @@ contract ArticleSubscriptionTest is Test {
         
         // Should not be able to read after expiry
         vm.prank(reader);
-        vm.expectRevert("Access expired");
+        vm.expectRevert(abi.encodeWithSelector(ArticleSubscription.AccessExpired.selector, reader, ARTICLE_ID, expiry, expiry + 1));
         articleSubscription.readArticle(ARTICLE_ID);
     }
 
@@ -135,7 +134,7 @@ contract ArticleSubscriptionTest is Test {
         // Cannot read after expiry
         vm.warp(expiry + 1);
         vm.prank(reader);
-        vm.expectRevert("Access expired");
+        vm.expectRevert(abi.encodeWithSelector(ArticleSubscription.AccessExpired.selector, reader, ARTICLE_ID, expiry, expiry + 1));
         articleSubscription.readArticle(ARTICLE_ID);
     }
 

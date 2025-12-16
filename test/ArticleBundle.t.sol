@@ -85,7 +85,7 @@ contract ArticleBundleTest is Test {
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
         
-        vm.expectRevert("Bundle ID already exists");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.BundleIdAlreadyExists.selector, bundleId));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -95,7 +95,7 @@ contract ArticleBundleTest is Test {
         articleIds[0] = articleId1;
         articleIds[1] = 999; // Non-existent
         
-        vm.expectRevert("Article does not exist");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.ArticleDoesNotExistInRegistry.selector, uint256(999)));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -103,7 +103,7 @@ contract ArticleBundleTest is Test {
     function test_createBundle_emptyArrayReverts() public {
         uint256[] memory articleIds = new uint256[](0);
         
-        vm.expectRevert("Bundle must contain at least one article");
+        vm.expectRevert(ArticleBundle.BundleMustContainAtLeastOneArticle.selector);
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -181,7 +181,7 @@ contract ArticleBundleTest is Test {
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
         
-        vm.expectRevert("Insufficient payment");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.InsufficientPaymentForBundle.selector, bundleId, bundlePrice, bundlePrice - 1));
         vm.prank(buyer);
         articleBundle.purchaseBundle{value: bundlePrice - 1}(bundleId);
     }
@@ -228,13 +228,16 @@ contract ArticleBundleTest is Test {
         // Move time past expiry
         vm.warp(block.timestamp + 86401); // More than 1 day
         
+        // Capture timestamp before purchase to ensure accurate comparison
+        uint256 purchaseTime = block.timestamp;
+        
         // Purchase again
         vm.prank(buyer);
         articleBundle.purchaseBundle{value: bundlePrice}(bundleId);
         uint256 expiry = articleBundle.getBundleAccessExpiry(buyer, bundleId);
         
-        // Should start from now
-        assertEq(expiry, block.timestamp + accessDuration);
+        // Should start from now (when purchase was made)
+        assertEq(expiry, purchaseTime + accessDuration);
     }
     
     function test_purchaseBundle_permanentAccess() public {

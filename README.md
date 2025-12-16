@@ -37,12 +37,52 @@ Subscription pattern (purchase once, read multiple):
 - `readArticle(id)` - Read after purchase (no payment, checks access)
 - `hasValidAccess(user, articleId)` - Check if user has valid access
 
-## Usage
+## Development
+
+This project uses [Foundry](https://book.getfoundry.sh/) for development, testing, and compilation.
+
+### Prerequisites
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) - Install using `./scripts/install-foundry.sh` or `make foundry-install`
+
+### Setup
+```bash
+# Install Foundry
+make foundry-install
+
+# Install OpenZeppelin Contracts
+make openzeppelin-install
+
+# Or use npm scripts
+npm run foundry:install
+npm run openzeppelin:install
 ```
-npm install
-npm run compile
-npm test
-npm run deploy
+
+### Usage
+```bash
+# Compile contracts
+forge build
+# or
+make compile
+
+# Run tests
+forge test
+# or
+make test
+
+# Run tests with verbose output
+forge test -vv
+# or
+make test-verbose
+
+# Run tests with gas report
+forge test --gas-report
+# or
+make test-gas
+
+# Generate coverage report
+forge coverage --ir-minimum --report lcov --report summary
+# or
+make coverage
 ```
 
 ## Example

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {AccessLib} from "../AccessLib.sol";
-import "./ArticleBase.sol";
-import "./IArticleRegistry.sol";
+import {ArticleBase} from "./ArticleBase.sol";
+import {IArticleRegistry} from "./IArticleRegistry.sol";
 
 /**
  * @title ArticleBundle
@@ -16,14 +16,16 @@ import "./IArticleRegistry.sol";
  */
 contract ArticleBundle is ArticleBase {
     
-    // Simple reentrancy guard (avoid pulling OZ for this learning repo)
-    uint256 private _locked = 1;
-    modifier nonReentrant() {
-        require(_locked == 1, "REENTRANCY");
-        _locked = 2;
-        _;
-        _locked = 1;
-    }
+    // Custom Errors
+    error BundleIdAlreadyExists(uint256 bundleId);
+    error BundleMustContainAtLeastOneArticle();
+    error TooManyArticlesInBundle(uint256 count, uint256 max);
+    error DuplicateArticleInBundle(uint256 articleId);
+    error ArticleDoesNotExistInRegistry(uint256 articleId);
+    error InvalidProvider(address provider);
+    error BundleDoesNotExist(uint256 bundleId);
+    error InsufficientPaymentForBundle(uint256 bundleId, uint256 required, uint256 sent);
+    error RefundFailed(address recipient, uint256 amount);
 
     // Keep bundle sizes bounded to avoid gas griefing
     uint256 public constant MAX_ARTICLES_PER_BUNDLE = 25;
@@ -38,7 +40,7 @@ contract ArticleBundle is ArticleBase {
     
     // External article registry (e.g., ArticlePayPerRead / ArticleSubscription).
     // Trust boundary: this contract assumes the registry's provider mapping is correct.
-    IArticleRegistry public immutable articleRegistry;
+    IArticleRegistry public immutable ARTICLE_REGISTRY;
     
     // Mapping from bundle ID to Bundle
     mapping(uint256 => Bundle) public bundles;
@@ -59,7 +61,7 @@ contract ArticleBundle is ArticleBase {
      * @notice ArticleBundle inherits from ArticleBase but uses external registry for articles
      */
     constructor(IArticleRegistry _articleRegistry) {
-        articleRegistry = _articleRegistry;
+        ARTICLE_REGISTRY = _articleRegistry;
     }
     
     /**
@@ -74,7 +76,7 @@ contract ArticleBundle is ArticleBase {
         uint256 usageCount,
         bool exists
     ) {
-        return articleRegistry.getArticleService(_articleId);
+        return ARTICLE_REGISTRY.getArticleService(_articleId);
     }
     
     /**
@@ -85,33 +87,56 @@ contract ArticleBundle is ArticleBase {
      * @param _accessDuration Access duration in seconds (0 = permanent)
      * @notice All articles must exist in the article contract
      */
+    /**
+     * @dev Create a bundle with multiple articles
+     * @param _bundleId Unique identifier for the bundle
+     * @param _articleIds Array of article IDs to include in bundle
+     * @param _price Price to purchase the bundle
+     * @param _accessDuration Access duration in seconds (0 = permanent)
+     * @notice All articles must exist in the article contract
+     *         Only service providers or contract owner can create bundles
+     */
     function createBundle(
         uint256 _bundleId,
         uint256[] memory _articleIds,
         uint256 _price,
         uint256 _accessDuration
     ) external validPrice(_price) {
-        require(!bundles[_bundleId].exists, "Bundle ID already exists");
-        require(_articleIds.length > 0, "Bundle must contain at least one article");
-        require(_articleIds.length <= MAX_ARTICLES_PER_BUNDLE, "Too many articles");
+        if (bundles[_bundleId].exists) {
+            revert BundleIdAlreadyExists(_bundleId);
+        }
+        if (_articleIds.length == 0) {
+            revert BundleMustContainAtLeastOneArticle();
+        }
+        if (_articleIds.length > MAX_ARTICLES_PER_BUNDLE) {
+            revert TooManyArticlesInBundle(_articleIds.length, MAX_ARTICLES_PER_BUNDLE);
+        }
         
         // Prevent duplicate article IDs (avoids double-paying the same underlying content)
         for (uint256 i = 0; i < _articleIds.length; i++) {
             for (uint256 j = i + 1; j < _articleIds.length; j++) {
-                require(_articleIds[i] != _articleIds[j], "Duplicate article");
+                if (_articleIds[i] == _articleIds[j]) {
+                    revert DuplicateArticleInBundle(_articleIds[i]);
+                }
             }
         }
         
         // Verify all articles exist and have valid provider
         for (uint256 i = 0; i < _articleIds.length; i++) {
-            (, , address provider, , bool exists) = articleRegistry.getArticleService(_articleIds[i]);
-            require(exists, "Article does not exist");
-            require(provider != address(0), "Invalid provider");
+            (, , address provider, , bool exists) = ARTICLE_REGISTRY.getArticleService(_articleIds[i]);
+            if (!exists) {
+                revert ArticleDoesNotExistInRegistry(_articleIds[i]);
+            }
+            if (provider == address(0)) {
+                revert InvalidProvider(provider);
+            }
         }
         
         // Manually create service record (don't register bundle creator as provider)
         // Bundle creator is just a curator, not a service provider
-        require(!services[_bundleId].exists, "Service ID already exists");
+        if (services[_bundleId].exists) {
+            revert ServiceIdAlreadyExists(_bundleId);
+        }
         services[_bundleId] = Service({
             id: _bundleId,
             price: _price,
@@ -142,10 +167,14 @@ contract ArticleBundle is ArticleBase {
      */
     function purchaseBundle(uint256 _bundleId) external payable serviceExists(_bundleId) nonReentrant {
         Bundle storage bundle = bundles[_bundleId];
-        require(bundle.exists, "Bundle does not exist");
+        if (!bundle.exists) {
+            revert BundleDoesNotExist(_bundleId);
+        }
         
         uint256 price = services[_bundleId].price;
-        require(msg.value >= price, "Insufficient payment");
+        if (msg.value < price) {
+            revert InsufficientPaymentForBundle(_bundleId, price, msg.value);
+        }
         
         // Calculate revenue per article (equal split)
         uint256 articleCount = bundle.articleIds.length;
@@ -155,15 +184,19 @@ contract ArticleBundle is ArticleBase {
         // Distribute revenue to each article's provider
         // Note: Providers can withdraw bundle earnings from this contract
         for (uint256 i = 0; i < articleCount; i++) {
-            (, , address provider, , ) = articleRegistry.getArticleService(bundle.articleIds[i]);
-            require(provider != address(0), "Invalid provider");
+            (, , address provider, , ) = ARTICLE_REGISTRY.getArticleService(bundle.articleIds[i]);
+            if (provider == address(0)) {
+                revert InvalidProvider(provider);
+            }
             earnings[provider] += revenuePerArticle;
         }
         
         // Give remainder to first article's provider
         if (remainder > 0) {
-            (, , address firstProvider, , ) = articleRegistry.getArticleService(bundle.articleIds[0]);
-            require(firstProvider != address(0), "Invalid provider");
+            (, , address firstProvider, , ) = ARTICLE_REGISTRY.getArticleService(bundle.articleIds[0]);
+            if (firstProvider == address(0)) {
+                revert InvalidProvider(firstProvider);
+            }
             earnings[firstProvider] += remainder;
         }
         
@@ -182,7 +215,9 @@ contract ArticleBundle is ArticleBase {
         
         if (refund > 0) {
             (bool ok, ) = payable(msg.sender).call{value: refund}("");
-            require(ok, "Refund failed");
+            if (!ok) {
+                revert RefundFailed(msg.sender, refund);
+            }
         }
     }
     
@@ -215,7 +250,9 @@ contract ArticleBundle is ArticleBase {
         uint256 usageCount
     ) {
         Bundle memory bundle = bundles[_bundleId];
-        require(bundle.exists, "Bundle does not exist");
+        if (!bundle.exists) {
+            revert BundleDoesNotExist(_bundleId);
+        }
         
         return (
             bundle.bundleId,
