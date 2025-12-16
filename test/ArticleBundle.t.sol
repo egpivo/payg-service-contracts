@@ -228,13 +228,16 @@ contract ArticleBundleTest is Test {
         // Move time past expiry
         vm.warp(block.timestamp + 86401); // More than 1 day
         
+        // Capture timestamp before purchase to ensure accurate comparison
+        uint256 purchaseTime = block.timestamp;
+        
         // Purchase again
         vm.prank(buyer);
         articleBundle.purchaseBundle{value: bundlePrice}(bundleId);
         uint256 expiry = articleBundle.getBundleAccessExpiry(buyer, bundleId);
         
-        // Should start from now
-        assertEq(expiry, block.timestamp + accessDuration);
+        // Should start from now (when purchase was made)
+        assertEq(expiry, purchaseTime + accessDuration);
     }
     
     function test_purchaseBundle_permanentAccess() public {
