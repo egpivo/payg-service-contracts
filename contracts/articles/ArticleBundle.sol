@@ -36,9 +36,9 @@ contract ArticleBundle is ArticleBase {
         bool exists;
     }
     
-    // Reference to external article registry contract (implements IArticleRegistry)
-    // Note: We override getArticleService() to use this external registry instead of our own
-    IArticleRegistry public articleRegistry;
+    // External article registry (e.g., ArticlePayPerRead / ArticleSubscription).
+    // Trust boundary: this contract assumes the registry's provider mapping is correct.
+    IArticleRegistry public immutable articleRegistry;
     
     // Mapping from bundle ID to Bundle
     mapping(uint256 => Bundle) public bundles;
@@ -95,10 +95,18 @@ contract ArticleBundle is ArticleBase {
         require(_articleIds.length > 0, "Bundle must contain at least one article");
         require(_articleIds.length <= MAX_ARTICLES_PER_BUNDLE, "Too many articles");
         
-        // Verify all articles exist
+        // Prevent duplicate article IDs (avoids double-paying the same underlying content)
         for (uint256 i = 0; i < _articleIds.length; i++) {
-            (, , , , bool exists) = articleRegistry.getArticleService(_articleIds[i]);
+            for (uint256 j = i + 1; j < _articleIds.length; j++) {
+                require(_articleIds[i] != _articleIds[j], "Duplicate article");
+            }
+        }
+        
+        // Verify all articles exist and have valid provider
+        for (uint256 i = 0; i < _articleIds.length; i++) {
+            (, , address provider, , bool exists) = articleRegistry.getArticleService(_articleIds[i]);
             require(exists, "Article does not exist");
+            require(provider != address(0), "Invalid provider");
         }
         
         // Manually create service record (don't register bundle creator as provider)
@@ -148,12 +156,14 @@ contract ArticleBundle is ArticleBase {
         // Note: Providers can withdraw bundle earnings from this contract
         for (uint256 i = 0; i < articleCount; i++) {
             (, , address provider, , ) = articleRegistry.getArticleService(bundle.articleIds[i]);
+            require(provider != address(0), "Invalid provider");
             earnings[provider] += revenuePerArticle;
         }
         
         // Give remainder to first article's provider
         if (remainder > 0) {
             (, , address firstProvider, , ) = articleRegistry.getArticleService(bundle.articleIds[0]);
+            require(firstProvider != address(0), "Invalid provider");
             earnings[firstProvider] += remainder;
         }
         
