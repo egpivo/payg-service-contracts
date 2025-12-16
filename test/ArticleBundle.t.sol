@@ -225,8 +225,9 @@ contract ArticleBundleTest is Test {
         vm.prank(buyer);
         articleBundle.purchaseBundle{value: bundlePrice}(bundleId);
         
-        // Move time past expiry
-        vm.warp(block.timestamp + 86401); // More than 1 day
+        // Move time past expiry (explicitly based on recorded expiry)
+        uint256 expiry1 = articleBundle.getBundleAccessExpiry(buyer, bundleId);
+        vm.warp(expiry1 + 1); // Ensure current time is strictly greater than previous expiry
         
         // Capture timestamp before purchase to ensure accurate comparison
         uint256 purchaseTime = block.timestamp;
