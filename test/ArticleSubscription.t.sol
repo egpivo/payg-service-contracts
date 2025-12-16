@@ -111,7 +111,7 @@ contract ArticleSubscriptionTest is Test {
         
         // Should not be able to read after expiry
         vm.prank(reader);
-        vm.expectRevert("Access expired");
+        vm.expectRevert(abi.encodeWithSelector(ArticleSubscription.AccessExpired.selector, reader, ARTICLE_ID, expiry, expiry + 1));
         articleSubscription.readArticle(ARTICLE_ID);
     }
 
@@ -135,7 +135,7 @@ contract ArticleSubscriptionTest is Test {
         // Cannot read after expiry
         vm.warp(expiry + 1);
         vm.prank(reader);
-        vm.expectRevert("Access expired");
+        vm.expectRevert(abi.encodeWithSelector(ArticleSubscription.AccessExpired.selector, reader, ARTICLE_ID, expiry, expiry + 1));
         articleSubscription.readArticle(ARTICLE_ID);
     }
 

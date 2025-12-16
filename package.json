@@ -2,31 +2,21 @@
   "name": "payg-service-contracts",
   "version": "1.0.0",
   "description": "A simple pay-as-you-go service contract in Solidity",
-  "main": "index.js",
   "scripts": {
-    "compile": "hardhat compile",
-    "test": "hardhat test",
-    "coverage": "hardhat coverage",
-    "node": "hardhat node",
-    "deploy": "hardhat run scripts/deploy.js",
     "foundry:install": "./scripts/install-foundry.sh",
     "openzeppelin:install": "./scripts/install-openzeppelin.sh",
-    "foundry:test": "./scripts/test-foundry.sh",
-    "foundry:test:verbose": "./scripts/test-foundry.sh -vv",
-    "foundry:test:gas": "./scripts/test-foundry.sh --gas-report"
+    "test": "./scripts/test-foundry.sh",
+    "test:verbose": "./scripts/test-foundry.sh -vv",
+    "test:gas": "./scripts/test-foundry.sh --gas-report",
+    "coverage": "forge coverage --ir-minimum --report lcov --report summary"
   },
   "keywords": [
     "solidity",
     "ethereum",
     "smart-contracts",
-    "pay-as-you-go"
+    "pay-as-you-go",
+    "foundry"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "hardhat": "^2.19.0",
-    "solidity-coverage": "^0.8.11"
-  }
+  "license": "MIT"
 }
-

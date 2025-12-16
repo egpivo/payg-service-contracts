@@ -85,7 +85,7 @@ contract ArticleBundleTest is Test {
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
         
-        vm.expectRevert("Bundle ID already exists");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.BundleIdAlreadyExists.selector, bundleId));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -95,7 +95,7 @@ contract ArticleBundleTest is Test {
         articleIds[0] = articleId1;
         articleIds[1] = 999; // Non-existent
         
-        vm.expectRevert("Article does not exist");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.ArticleDoesNotExistInRegistry.selector, uint256(999)));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -103,7 +103,7 @@ contract ArticleBundleTest is Test {
     function test_createBundle_emptyArrayReverts() public {
         uint256[] memory articleIds = new uint256[](0);
         
-        vm.expectRevert("Bundle must contain at least one article");
+        vm.expectRevert(ArticleBundle.BundleMustContainAtLeastOneArticle.selector);
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -181,7 +181,7 @@ contract ArticleBundleTest is Test {
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
         
-        vm.expectRevert("Insufficient payment");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.InsufficientPaymentForBundle.selector, bundleId, bundlePrice, bundlePrice - 1));
         vm.prank(buyer);
         articleBundle.purchaseBundle{value: bundlePrice - 1}(bundleId);
     }

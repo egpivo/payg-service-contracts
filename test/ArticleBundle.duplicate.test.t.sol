@@ -46,7 +46,7 @@ contract ArticleBundleDuplicateTest is Test {
         articleIds[1] = articleId2;
         articleIds[2] = articleId1; // Duplicate
         
-        vm.expectRevert("Duplicate article");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.DuplicateArticleInBundle.selector, articleId1));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -57,7 +57,7 @@ contract ArticleBundleDuplicateTest is Test {
         articleIds[1] = articleId1; // Duplicate
         articleIds[2] = articleId2;
         
-        vm.expectRevert("Duplicate article");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.DuplicateArticleInBundle.selector, articleId1));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -68,7 +68,7 @@ contract ArticleBundleDuplicateTest is Test {
         articleIds[1] = articleId1; // Duplicate
         articleIds[2] = articleId1; // Duplicate
         
-        vm.expectRevert("Duplicate article");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.DuplicateArticleInBundle.selector, articleId1));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
@@ -80,7 +80,7 @@ contract ArticleBundleDuplicateTest is Test {
         articleIds[2] = 999; // Non-existent, but unique
         
         // Should revert on "Article does not exist", not "Duplicate article"
-        vm.expectRevert("Article does not exist");
+        vm.expectRevert(abi.encodeWithSelector(ArticleBundle.ArticleDoesNotExistInRegistry.selector, uint256(999)));
         vm.prank(bundleCreator);
         articleBundle.createBundle(bundleId, articleIds, bundlePrice, 0);
     }
