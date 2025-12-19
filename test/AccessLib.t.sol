@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {AccessLib} from "../contracts/AccessLib.sol";
+import {AccessLib} from "../contracts/core/AccessLib.sol";
 
 contract AccessLibTest is Test {
     using AccessLib for uint256;

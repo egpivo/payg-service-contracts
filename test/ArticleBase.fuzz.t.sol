@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {ArticlePayPerRead} from "../contracts/articles/ArticlePayPerRead.sol";
-import {ArticleBase} from "../contracts/articles/ArticleBase.sol";
-import {PayAsYouGoBase} from "../contracts/PayAsYouGoBase.sol";
+import {ArticlePayPerRead} from "../contracts/modules/articles/ArticlePayPerRead.sol";
+import {ArticleBase} from "../contracts/modules/articles/ArticleBase.sol";
+import {PayAsYouGoBase} from "../contracts/core/PayAsYouGoBase.sol";
 
 contract ArticleBaseFuzzTest is Test {
     ArticlePayPerRead public articlePayPerRead;
