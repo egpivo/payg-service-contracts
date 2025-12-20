@@ -120,10 +120,42 @@ contract SpaceSubscription is RentalBase {
         // Add rental price to provider's earnings (deposit is held separately)
         earnings[services[_rentalId].provider] += price;
         
-        // Hold deposit if required (deposit ETH stays in contract balance - true escrow)
+        // Handle deposit: check for existing deposit first to prevent double-charging on renewal
+        uint256 existingDeposit = depositsHeld[msg.sender][_rentalId];
         if (_deposit > 0) {
-            depositsHeld[msg.sender][_rentalId] = _deposit;
-            totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+            if (existingDeposit > 0) {
+                if (existingDeposit != _deposit) {
+                    // Deposit amount changed: refund old deposit first, then charge new one
+                    // This prevents locking user funds and inflating totalDepositsHeld
+                    depositsHeld[msg.sender][_rentalId] = 0;
+                    totalDepositsHeld -= existingDeposit;
+                    
+                    // Refund old deposit to user
+                    (bool refundSuccess, ) = payable(msg.sender).call{value: existingDeposit}("");
+                    if (!refundSuccess) {
+                        revert TransferFailed(msg.sender, existingDeposit);
+                    }
+                    
+                    // Set new deposit
+                    depositsHeld[msg.sender][_rentalId] = _deposit;
+                    totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+                }
+                // If existingDeposit == _deposit, no action needed (deposit already correct)
+            } else {
+                // No existing deposit: set new deposit
+                depositsHeld[msg.sender][_rentalId] = _deposit;
+                totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+            }
+        } else if (existingDeposit > 0) {
+            // Deposit requirement removed: refund existing deposit
+            depositsHeld[msg.sender][_rentalId] = 0;
+            totalDepositsHeld -= existingDeposit;
+            
+            // Refund existing deposit to user
+            (bool refundSuccess, ) = payable(msg.sender).call{value: existingDeposit}("");
+            if (!refundSuccess) {
+                revert TransferFailed(msg.sender, existingDeposit);
+            }
         }
         
         // Increment usage count
