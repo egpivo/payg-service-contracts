@@ -21,3 +21,7 @@ cache/
 # Foundry specific
 forge-cache/
 forge-out/
+
+# Documentation (keep locally, don't commit)
+*_DESIGN_REVIEW.md
+PR_*.md
