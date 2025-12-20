@@ -43,23 +43,35 @@ contract EquipmentPayPerUse is RentalBase {
     /**
      * @dev Use equipment (pay-per-use)
      * @param _rentalId The ID of the equipment to use
+     * @param _usageDuration Duration in seconds for exclusive usage (0 = block-level only)
      * @notice Pay-per-use: Pay each time you use the equipment
      *         No storage writes for access expiry (gas efficient)
      *         For exclusive equipment, marks as in use immediately
      *         For non-exclusive equipment, multiple users can use simultaneously
+     *         If _usageDuration == 0: Block-level exclusivity (prevents same-block concurrent txns)
+     *         If _usageDuration > 0: Real time window exclusivity (prevents usage for duration)
      *         Tracking done via event emission for off-chain analytics
      */
-    function useEquipment(uint256 _rentalId) external payable rentalAvailable(_rentalId) {
-        // Use base contract's useService (pay-per-use)
-        useService(_rentalId);
-        
-        // For exclusive equipment, mark as in use (until end of block or custom logic)
+    function useEquipment(uint256 _rentalId, uint256 _usageDuration) external payable rentalAvailable(_rentalId) {
         Rental memory rental = rentals[_rentalId];
+        
+        // For exclusive equipment, mark as in use BEFORE payment to prevent concurrent transactions
+        // This ensures exclusivity is enforced even for pay-per-use
         if (rental.exclusive) {
-            // Mark as exclusive for this block (or extend as needed)
-            _startExclusiveRental(_rentalId, msg.sender, block.timestamp);
+            uint256 exclusiveUntil;
+            if (_usageDuration == 0) {
+                // Block-level only: prevents concurrent transactions in same block
+                exclusiveUntil = block.timestamp + 1;
+            } else {
+                // Real time window: prevents usage for specified duration
+                exclusiveUntil = block.timestamp + _usageDuration;
+            }
+            _startExclusiveRental(_rentalId, msg.sender, exclusiveUntil);
         }
         // For non-exclusive equipment, no exclusivity tracking needed
+        
+        // Use base contract's useService (pay-per-use)
+        useService(_rentalId);
         
         // Emit event with timestamp for off-chain tracking
         emit EquipmentUsed(_rentalId, msg.sender, block.timestamp);

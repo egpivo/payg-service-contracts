@@ -82,17 +82,22 @@ contract DigitalSubscription is RentalBase {
      * @param _rentalId The ID of the rental
      */
     function _withinAccessPeriod(uint256 _rentalId) internal view {
-        if (subscriptionType[_rentalId] != SubscriptionType.TimeBased) {
-            return; // Credit-based doesn't use this check
-        }
+        SubscriptionType subType = subscriptionType[_rentalId];
         
-        uint256 expiry = accessExpiry[msg.sender][_rentalId];
-        if (expiry == 0) {
-            revert AccessNotGranted(msg.sender, _rentalId);
+        // Only check access for TimeBased subscriptions
+        if (subType == SubscriptionType.TimeBased) {
+            uint256 expiry = accessExpiry[msg.sender][_rentalId];
+            if (expiry == 0) {
+                revert AccessNotGranted(msg.sender, _rentalId);
+            }
+            if (block.timestamp > expiry) {
+                revert AccessExpired(msg.sender, _rentalId, expiry, block.timestamp);
+            }
+        } else if (subType != SubscriptionType.CreditBased) {
+            // Invalid enum value - should never happen if listDigitalService validates
+            revert InvalidSubscriptionType(_rentalId);
         }
-        if (block.timestamp > expiry) {
-            revert AccessExpired(msg.sender, _rentalId, expiry, block.timestamp);
-        }
+        // Credit-based doesn't use this check, so return silently
     }
     
     /**
@@ -117,6 +122,11 @@ contract DigitalSubscription is RentalBase {
         uint256 _pricePerCredit,
         uint256 _accessDuration
     ) external {
+        // Validate subscription type enum value
+        if (_subType != SubscriptionType.CreditBased && _subType != SubscriptionType.TimeBased) {
+            revert InvalidSubscriptionType(_rentalId);
+        }
+        
         // Digital services are non-exclusive by default
         _listRental(_rentalId, _price, _name, _description, _assetHash, false);
         
@@ -124,7 +134,7 @@ contract DigitalSubscription is RentalBase {
         
         if (_subType == SubscriptionType.CreditBased) {
             pricePerCredit[_rentalId] = _pricePerCredit;
-        } else {
+        } else if (_subType == SubscriptionType.TimeBased) {
             accessDuration[_rentalId] = _accessDuration;
         }
     }
@@ -142,6 +152,11 @@ contract DigitalSubscription is RentalBase {
         rentalAvailable(_rentalId) 
     {
         SubscriptionType subType = subscriptionType[_rentalId];
+        
+        // Validate subscription type
+        if (subType != SubscriptionType.CreditBased && subType != SubscriptionType.TimeBased) {
+            revert InvalidSubscriptionType(_rentalId);
+        }
         
         if (subType == SubscriptionType.CreditBased) {
             if (_creditsOrDuration == 0) {
@@ -175,19 +190,28 @@ contract DigitalSubscription is RentalBase {
             emit CreditsPurchased(_rentalId, msg.sender, _creditsOrDuration, totalCost);
             emit DigitalServiceSubscribed(_rentalId, msg.sender, subType, creditsRemaining[msg.sender][_rentalId], block.timestamp);
             
-        } else { // TimeBased
+        } else if (subType == SubscriptionType.TimeBased) {
             uint256 duration = accessDuration[_rentalId];
             uint256 currentExpiry = accessExpiry[msg.sender][_rentalId];
             uint256 expiry = AccessLib.computeExpiry(currentExpiry, block.timestamp, duration);
+            uint256 price = services[_rentalId].price;
             
-            // Pay for subscription
-            useService(_rentalId);
+            // Check payment upfront
+            if (msg.value < price) {
+                revert InsufficientPayment(_rentalId, price, msg.value);
+            }
+            
+            // Manually handle payment accounting (don't call useService to avoid refunds)
+            // Add subscription price to provider's earnings
+            earnings[services[_rentalId].provider] += price;
+            
+            // Increment usage count
+            services[_rentalId].usageCount += 1;
             
             // Set access expiry
             accessExpiry[msg.sender][_rentalId] = expiry;
             
-            // Refund excess
-            uint256 price = services[_rentalId].price;
+            // Refund excess payment if any (only once, after all accounting)
             if (msg.value > price) {
                 uint256 refundAmount = msg.value - price;
                 (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
@@ -196,7 +220,12 @@ contract DigitalSubscription is RentalBase {
                 }
             }
             
+            // Emit events
+            emit ServiceUsed(_rentalId, msg.sender, services[_rentalId].usageCount);
             emit DigitalServiceSubscribed(_rentalId, msg.sender, subType, expiry, block.timestamp);
+        } else {
+            // Should never reach here due to validation above, but add for safety
+            revert InvalidSubscriptionType(_rentalId);
         }
     }
     
@@ -217,6 +246,11 @@ contract DigitalSubscription is RentalBase {
         
         SubscriptionType subType = subscriptionType[_rentalId];
         
+        // Validate subscription type
+        if (subType != SubscriptionType.CreditBased && subType != SubscriptionType.TimeBased) {
+            revert InvalidSubscriptionType(_rentalId);
+        }
+        
         if (subType == SubscriptionType.CreditBased) {
             // Check and consume credits
             uint256 credits = creditsRemaining[msg.sender][_rentalId];
@@ -228,12 +262,15 @@ contract DigitalSubscription is RentalBase {
             
             emit DigitalServiceUsed(_rentalId, msg.sender, _quantity, _quantity, block.timestamp);
             
-        } else { // TimeBased
+        } else if (subType == SubscriptionType.TimeBased) {
             // Check access period
             _withinAccessPeriod(_rentalId);
             
             // No credit consumption for time-based
             emit DigitalServiceUsed(_rentalId, msg.sender, _quantity, 0, block.timestamp);
+        } else {
+            // Should never reach here due to validation above, but add for safety
+            revert InvalidSubscriptionType(_rentalId);
         }
     }
     
@@ -248,8 +285,11 @@ contract DigitalSubscription is RentalBase {
         
         if (subType == SubscriptionType.CreditBased) {
             return creditsRemaining[_user][_rentalId] > 0;
-        } else {
+        } else if (subType == SubscriptionType.TimeBased) {
             return AccessLib.isValid(accessExpiry[_user][_rentalId], block.timestamp);
+        } else {
+            // Invalid subscription type
+            return false;
         }
     }
     
@@ -264,8 +304,11 @@ contract DigitalSubscription is RentalBase {
         
         if (subType == SubscriptionType.CreditBased) {
             return creditsRemaining[_user][_rentalId];
-        } else {
+        } else if (subType == SubscriptionType.TimeBased) {
             return accessExpiry[_user][_rentalId];
+        } else {
+            // Invalid subscription type
+            revert InvalidSubscriptionType(_rentalId);
         }
     }
 }

@@ -25,3 +25,4 @@ forge-out/
 # Documentation (keep locally, don't commit)
 *_DESIGN_REVIEW.md
 PR_*.md
+DESIGN_QUESTIONS_ANALYSIS.md

@@ -119,6 +119,8 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
      * @dev Internal function to check if rental is available
      * @param _rentalId The ID of the rental to check
      * @notice For exclusive rentals, checks if currently rented by someone else
+     *         For pay-per-use: checks currentRenter (must be address(0) or msg.sender)
+     *         For subscription: checks exclusiveUntil timestamp
      */
     function _rentalAvailable(uint256 _rentalId) internal view {
         _rentalExists(_rentalId);
@@ -130,9 +132,11 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
         
         // For exclusive rentals, check if currently in use
         if (rental.exclusive) {
+            address renter = currentRenter[_rentalId];
             uint256 until = exclusiveUntil[_rentalId];
-            if (until > block.timestamp) {
-                address renter = currentRenter[_rentalId];
+            
+            // Block if there's an active renter (not the current caller) and exclusivity hasn't expired
+            if (renter != address(0) && renter != msg.sender && until > block.timestamp) {
                 revert RentalCurrentlyExclusive(_rentalId, renter, until);
             }
         }
@@ -222,6 +226,17 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
             exclusiveUntil[_rentalId] = 0;
             emit ExclusiveRentalEnded(_rentalId, renter);
         }
+    }
+    
+    /**
+     * @dev Clear exclusivity for pay-per-use rentals (called after use completes)
+     * @param _rentalId The ID of the rental
+     * @notice For pay-per-use, exclusivity should be cleared after each use
+     *         This allows the next user to use the rental
+     */
+    function _clearExclusivity(uint256 _rentalId) internal {
+        currentRenter[_rentalId] = address(0);
+        exclusiveUntil[_rentalId] = 0;
     }
     
     /**

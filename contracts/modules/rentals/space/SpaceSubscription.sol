@@ -29,6 +29,9 @@ contract SpaceSubscription is RentalBase {
     // Mapping from rental ID to default deposit amount (0 if not required)
     mapping(uint256 => uint256) public rentalDeposit;
     
+    // Total deposits held across all users and rentals (for escrow accounting)
+    uint256 public totalDepositsHeld;
+    
     // Events
     event SpaceRented(uint256 indexed rentalId, address indexed renter, uint256 expiry, uint256 deposit);
     event SpaceUsed(uint256 indexed rentalId, address indexed renter, uint256 timestamp);
@@ -39,6 +42,7 @@ contract SpaceSubscription is RentalBase {
     error AccessExpired(address user, uint256 rentalId, uint256 expiry, uint256 currentTime);
     error InsufficientDeposit(uint256 rentalId, uint256 required, uint256 sent);
     error NoDepositToReturn(address user, uint256 rentalId);
+    error InsufficientContractBalance(uint256 required, uint256 available);
     
     /**
      * @dev Modifier to check if user's access is still valid
@@ -104,21 +108,26 @@ contract SpaceSubscription is RentalBase {
         // Get default access duration and deposit from listing
         uint256 _accessDuration = rentalAccessDuration[_rentalId];
         uint256 _deposit = rentalDeposit[_rentalId];
+        uint256 price = services[_rentalId].price;
+        uint256 totalRequired = price + _deposit;
         
-        // Pay once for access
-        useService(_rentalId);
-        
-        // Handle deposit
-        if (_deposit > 0) {
-            if (msg.value < services[_rentalId].price + _deposit) {
-                revert InsufficientDeposit(_rentalId, services[_rentalId].price + _deposit, msg.value);
-            }
-            depositsHeld[msg.sender][_rentalId] = _deposit;
-        } else {
-            if (msg.value < services[_rentalId].price) {
-                revert InsufficientPayment(_rentalId, services[_rentalId].price, msg.value);
-            }
+        // Check payment upfront (before any refunds)
+        if (msg.value < totalRequired) {
+            revert InsufficientDeposit(_rentalId, totalRequired, msg.value);
         }
+        
+        // Manually handle payment accounting (don't call useService to avoid refunds)
+        // Add rental price to provider's earnings (deposit is held separately)
+        earnings[services[_rentalId].provider] += price;
+        
+        // Hold deposit if required (deposit ETH stays in contract balance - true escrow)
+        if (_deposit > 0) {
+            depositsHeld[msg.sender][_rentalId] = _deposit;
+            totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+        }
+        
+        // Increment usage count
+        services[_rentalId].usageCount += 1;
         
         // Set access expiry time (storage write - gas cost)
         uint256 currentExpiry = accessExpiry[msg.sender][_rentalId];
@@ -128,8 +137,7 @@ contract SpaceSubscription is RentalBase {
         // For exclusive spaces, mark as in use during rental period
         _startExclusiveRental(_rentalId, msg.sender, expiry);
         
-        // Refund excess payment if any
-        uint256 totalRequired = services[_rentalId].price + _deposit;
+        // Refund excess payment if any (only once, after all accounting)
         if (msg.value > totalRequired) {
             uint256 refundAmount = msg.value - totalRequired;
             (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
@@ -138,6 +146,8 @@ contract SpaceSubscription is RentalBase {
             }
         }
         
+        // Emit events
+        emit ServiceUsed(_rentalId, msg.sender, services[_rentalId].usageCount);
         emit SpaceRented(_rentalId, msg.sender, expiry, _deposit);
     }
     
@@ -176,6 +186,7 @@ contract SpaceSubscription is RentalBase {
         
         // Reset deposit before transfer to prevent reentrancy
         depositsHeld[_renter][_rentalId] = 0;
+        totalDepositsHeld -= depositAmount; // Decrement total deposits held
         
         // Transfer deposit back
         (bool success, ) = payable(_renter).call{value: depositAmount}("");
@@ -214,6 +225,38 @@ contract SpaceSubscription is RentalBase {
      */
     function getDepositHeld(address _user, uint256 _rentalId) external view returns (uint256) {
         return depositsHeld[_user][_rentalId];
+    }
+    
+    /**
+     * @dev Withdraw earnings for a provider (with escrow protection)
+     * @notice Overrides base withdraw to ensure deposits are not withdrawn
+     *         Only allows withdrawal if contract balance >= totalDepositsHeld + earnings
+     *         This ensures deposits remain locked in the contract (true escrow)
+     */
+    function withdraw() public override nonReentrant {
+        uint256 amount = earnings[msg.sender];
+        if (amount == 0) {
+            revert NoEarningsToWithdraw(msg.sender);
+        }
+        
+        // Ensure contract balance is sufficient to cover all deposits + this withdrawal
+        // This prevents withdrawing deposits that should be held in escrow
+        uint256 requiredBalance = totalDepositsHeld + amount;
+        uint256 contractBalance = address(this).balance;
+        if (contractBalance < requiredBalance) {
+            revert InsufficientContractBalance(requiredBalance, contractBalance);
+        }
+        
+        // Effects: Reset earnings before transfer to prevent reentrancy
+        earnings[msg.sender] = 0;
+        
+        // Interactions: Transfer earnings to provider (deposits remain in contract)
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        if (!success) {
+            revert TransferFailed(msg.sender, amount);
+        }
+        
+        emit Withdrawn(msg.sender, amount);
     }
 }
 

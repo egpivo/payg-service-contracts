@@ -42,23 +42,33 @@ contract SpacePayPerUse is RentalBase {
     /**
      * @dev Use a space (pay-per-use)
      * @param _rentalId The ID of the space to use
+     * @param _usageDuration Duration in seconds for exclusive usage (0 = block-level only)
      * @notice Pay-per-use: Pay each time you use the space
      *         No storage writes for access expiry (gas efficient)
      *         For exclusive spaces, marks as in use immediately
+     *         If _usageDuration == 0: Block-level exclusivity (prevents same-block concurrent txns)
+     *         If _usageDuration > 0: Real time window exclusivity (prevents usage for duration)
      *         Tracking done via event emission for off-chain analytics
      */
-    function useSpace(uint256 _rentalId) external payable rentalAvailable(_rentalId) {
+    function useSpace(uint256 _rentalId, uint256 _usageDuration) external payable rentalAvailable(_rentalId) {
+        Rental memory rental = rentals[_rentalId];
+        
+        // For exclusive spaces, mark as in use BEFORE payment to prevent concurrent transactions
+        // This ensures exclusivity is enforced even for pay-per-use
+        if (rental.exclusive) {
+            uint256 exclusiveUntil;
+            if (_usageDuration == 0) {
+                // Block-level only: prevents concurrent transactions in same block
+                exclusiveUntil = block.timestamp + 1;
+            } else {
+                // Real time window: prevents usage for specified duration
+                exclusiveUntil = block.timestamp + _usageDuration;
+            }
+            _startExclusiveRental(_rentalId, msg.sender, exclusiveUntil);
+        }
+        
         // Use base contract's useService (pay-per-use)
         useService(_rentalId);
-        
-        // For exclusive spaces, mark as in use (until end of block or custom logic)
-        // Note: For pay-per-use, exclusivity is typically per-transaction
-        // Service-specific logic can extend this if needed
-        Rental memory rental = rentals[_rentalId];
-        if (rental.exclusive) {
-            // Mark as exclusive for this block (or extend as needed)
-            _startExclusiveRental(_rentalId, msg.sender, block.timestamp);
-        }
         
         // Emit event with timestamp for off-chain tracking
         emit SpaceUsed(_rentalId, msg.sender, block.timestamp);
