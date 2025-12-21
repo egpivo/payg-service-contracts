@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {ArticlePayPerRead} from "../contracts/articles/ArticlePayPerRead.sol";
+import {ArticlePayPerRead} from "../contracts/modules/articles/ArticlePayPerRead.sol";
 
 contract ArticleBaseHandler is Test {
     ArticlePayPerRead public target;

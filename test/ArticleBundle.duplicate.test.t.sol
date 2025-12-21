@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {ArticlePayPerRead} from "../contracts/articles/ArticlePayPerRead.sol";
-import {ArticleBundle} from "../contracts/articles/ArticleBundle.sol";
-import {IArticleRegistry} from "../contracts/articles/IArticleRegistry.sol";
+import {ArticlePayPerRead} from "../contracts/modules/articles/ArticlePayPerRead.sol";
+import {ArticleBundle} from "../contracts/modules/articles/ArticleBundle.sol";
+import {IArticleRegistry} from "../contracts/modules/articles/IArticleRegistry.sol";
 
 contract ArticleBundleDuplicateTest is Test {
     ArticlePayPerRead public articlePayPerRead;

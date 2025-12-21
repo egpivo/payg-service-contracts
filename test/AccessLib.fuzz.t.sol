@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {AccessLib} from "../contracts/AccessLib.sol";
+import {AccessLib} from "../contracts/core/AccessLib.sol";
 
 contract AccessLibFuzzTest is Test {
     function testFuzz_computeExpiry_durationZero_alwaysReturnsMax(uint256 currentExpiry, uint256 nowTs) public pure {

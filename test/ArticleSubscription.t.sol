@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {ArticleSubscription} from "../contracts/articles/ArticleSubscription.sol";
+import {ArticleSubscription} from "../contracts/modules/articles/ArticleSubscription.sol";
 
 contract ArticleSubscriptionTest is Test {
     ArticleSubscription public articleSubscription;
