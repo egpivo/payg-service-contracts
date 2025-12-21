@@ -109,7 +109,13 @@ contract SpaceSubscription is RentalBase {
         uint256 _accessDuration = rentalAccessDuration[_rentalId];
         uint256 _deposit = rentalDeposit[_rentalId];
         uint256 price = services[_rentalId].price;
-        uint256 totalRequired = price + _deposit;
+        
+        // Check for existing deposit first (charge once per renter pattern)
+        uint256 existingDeposit = depositsHeld[msg.sender][_rentalId];
+        
+        // Calculate required payment: only charge deposit if user doesn't already have one
+        uint256 depositToCharge = (existingDeposit == 0) ? _deposit : 0;
+        uint256 totalRequired = price + depositToCharge;
         
         // Check payment upfront (before any refunds)
         if (msg.value < totalRequired) {
@@ -120,33 +126,12 @@ contract SpaceSubscription is RentalBase {
         // Add rental price to provider's earnings (deposit is held separately)
         earnings[services[_rentalId].provider] += price;
         
-        // Handle deposit: check for existing deposit first to prevent double-charging on renewal
-        uint256 existingDeposit = depositsHeld[msg.sender][_rentalId];
-        if (_deposit > 0) {
-            if (existingDeposit > 0) {
-                if (existingDeposit != _deposit) {
-                    // Deposit amount changed: refund old deposit first, then charge new one
-                    // This prevents locking user funds and inflating totalDepositsHeld
-                    depositsHeld[msg.sender][_rentalId] = 0;
-                    totalDepositsHeld -= existingDeposit;
-                    
-                    // Refund old deposit to user
-                    (bool refundSuccess, ) = payable(msg.sender).call{value: existingDeposit}("");
-                    if (!refundSuccess) {
-                        revert TransferFailed(msg.sender, existingDeposit);
-                    }
-                    
-                    // Set new deposit
-                    depositsHeld[msg.sender][_rentalId] = _deposit;
-                    totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
-                }
-                // If existingDeposit == _deposit, no action needed (deposit already correct)
-            } else {
-                // No existing deposit: set new deposit
-                depositsHeld[msg.sender][_rentalId] = _deposit;
-                totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
-            }
-        } else if (existingDeposit > 0) {
+        // Handle deposit: charge only if user doesn't already have one (charge once per renter)
+        if (depositToCharge > 0) {
+            // No existing deposit: set new deposit
+            depositsHeld[msg.sender][_rentalId] = _deposit;
+            totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+        } else if (existingDeposit > 0 && _deposit == 0) {
             // Deposit requirement removed: refund existing deposit
             depositsHeld[msg.sender][_rentalId] = 0;
             totalDepositsHeld -= existingDeposit;
@@ -157,6 +142,7 @@ contract SpaceSubscription is RentalBase {
                 revert TransferFailed(msg.sender, existingDeposit);
             }
         }
+        // If existingDeposit > 0 and _deposit > 0: deposit already held, no action needed
         
         // Increment usage count
         services[_rentalId].usageCount += 1;
