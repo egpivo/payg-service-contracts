@@ -96,6 +96,23 @@ contract SpaceSubscription is RentalBase {
     }
     
     /**
+     * @dev Update space settings (deposit and access duration)
+     * @param _rentalId The ID of the space to update
+     * @param _accessDuration New access duration in seconds (0 = permanent)
+     * @param _deposit New security deposit amount (0 if not required)
+     * @notice Only the space provider can update settings
+     *         When deposit requirement changes, existing renters will pay/keep difference on renewal
+     */
+    function updateSpaceSettings(
+        uint256 _rentalId,
+        uint256 _accessDuration,
+        uint256 _deposit
+    ) external rentalExists(_rentalId) onlyProvider(_rentalId) {
+        rentalAccessDuration[_rentalId] = _accessDuration;
+        rentalDeposit[_rentalId] = _deposit;
+    }
+    
+    /**
      * @dev Rent a space (pay once, use multiple times during access period)
      * @param _rentalId The ID of the space to rent
      * @notice Subscription pattern: Rent once, then use multiple times without paying
