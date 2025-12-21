@@ -169,14 +169,16 @@ contract SpacePayPerUseTest is Test {
         _price1; _provider1; // Silence unused variable warnings
         assertEq(currentRenter1, user);
         assertEq(usageCount1, 1);
-        assertGt(exclusiveUntil1, block.timestamp);
-        assertLe(exclusiveUntil1, block.timestamp + shortDuration);
+        // Verify exclusivity duration: exclusiveUntil1 should be approximately block.timestamp + shortDuration
+        uint256 duration1 = exclusiveUntil1 > block.timestamp ? exclusiveUntil1 - block.timestamp : 0;
+        assertGe(duration1, shortDuration);
+        assertLe(duration1, shortDuration + 1);
 
         // Fast forward past exclusivity
         vm.warp(exclusiveUntil1 + 1);
         
         // Second use by different user
-        uint256 warpTime = block.timestamp;
+        uint256 timestampBeforeUse2 = block.timestamp;
         vm.prank(user2);
         spacePayPerUse.useSpace{value: PRICE}(RENTAL_ID);
         
@@ -185,10 +187,11 @@ contract SpacePayPerUseTest is Test {
         _price2; _provider2; // Silence unused variable warnings
         assertEq(currentRenter2, user2);
         assertEq(usageCount2, 2);
-        // exclusiveUntil2 should be warpTime + shortDuration (within the same block)
-        // Allow small tolerance for block.timestamp consistency
-        assertGe(exclusiveUntil2, warpTime + shortDuration);
-        assertLe(exclusiveUntil2, warpTime + shortDuration + 1);
+        // Verify exclusivity duration: exclusiveUntil2 should be approximately timestampBeforeUse2 + shortDuration
+        // Calculate the actual duration and verify it matches expected duration
+        uint256 duration2 = exclusiveUntil2 > timestampBeforeUse2 ? exclusiveUntil2 - timestampBeforeUse2 : 0;
+        assertGe(duration2, shortDuration);
+        assertLe(duration2, shortDuration + 1);
 
         // Fast forward past exclusivity again
         vm.warp(exclusiveUntil2 + 1);
