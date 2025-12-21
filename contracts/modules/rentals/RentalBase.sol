@@ -121,8 +121,9 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
      * @notice For exclusive rentals, checks if currently rented by someone else
      *         For pay-per-use: checks currentRenter (must be address(0) or msg.sender)
      *         For subscription: checks exclusiveUntil timestamp
+     *         Automatically clears expired exclusivity and emits ExclusiveRentalEnded event
      */
-    function _rentalAvailable(uint256 _rentalId) internal view {
+    function _rentalAvailable(uint256 _rentalId) internal {
         _rentalExists(_rentalId);
         
         Rental memory rental = rentals[_rentalId];
@@ -134,6 +135,14 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
         if (rental.exclusive) {
             address renter = currentRenter[_rentalId];
             uint256 until = exclusiveUntil[_rentalId];
+            
+            // Clear expired exclusivity (prevents stale state and emits end event)
+            if (renter != address(0) && until > 0 && until <= block.timestamp) {
+                _endExclusiveRental(_rentalId);
+                // Re-read after clearing
+                renter = currentRenter[_rentalId];
+                until = exclusiveUntil[_rentalId];
+            }
             
             // Block if there's an active renter (not the current caller) and exclusivity hasn't expired
             if (renter != address(0) && renter != msg.sender && until > block.timestamp) {
@@ -226,17 +235,6 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
             exclusiveUntil[_rentalId] = 0;
             emit ExclusiveRentalEnded(_rentalId, renter);
         }
-    }
-    
-    /**
-     * @dev Clear exclusivity for pay-per-use rentals (called after use completes)
-     * @param _rentalId The ID of the rental
-     * @notice For pay-per-use, exclusivity should be cleared after each use
-     *         This allows the next user to use the rental
-     */
-    function _clearExclusivity(uint256 _rentalId) internal {
-        currentRenter[_rentalId] = address(0);
-        exclusiveUntil[_rentalId] = 0;
     }
     
     /**

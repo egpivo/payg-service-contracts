@@ -16,6 +16,9 @@ import {RentalBase} from "../RentalBase.sol";
  */
 contract EquipmentPayPerUse is RentalBase {
     
+    // Mapping from rental ID to default usage duration (0 = block-level only)
+    mapping(uint256 => uint256) public defaultUsageDuration;
+    
     // Events
     event EquipmentUsed(uint256 indexed rentalId, address indexed renter, uint256 timestamp);
     
@@ -27,7 +30,10 @@ contract EquipmentPayPerUse is RentalBase {
      * @param _description Description of the equipment
      * @param _assetHash Hash of the equipment metadata (for verification)
      * @param _exclusive Whether equipment is exclusive (false for digital/shared equipment)
+     * @param _defaultUsageDuration Default usage duration in seconds (0 = block-level only)
      * @notice Equipment can be exclusive (physical) or non-exclusive (digital/shared)
+     *         Provider controls usage duration to prevent economic DoS
+     *         All users will use the same duration set by provider
      */
     function listEquipment(
         uint256 _rentalId,
@@ -35,36 +41,42 @@ contract EquipmentPayPerUse is RentalBase {
         string memory _name,
         string memory _description,
         bytes32 _assetHash,
-        bool _exclusive
+        bool _exclusive,
+        uint256 _defaultUsageDuration
     ) external {
         _listRental(_rentalId, _price, _name, _description, _assetHash, _exclusive);
+        
+        // Store default usage duration (provider-controlled to prevent economic DoS)
+        defaultUsageDuration[_rentalId] = _defaultUsageDuration;
     }
     
     /**
      * @dev Use equipment (pay-per-use)
      * @param _rentalId The ID of the equipment to use
-     * @param _usageDuration Duration in seconds for exclusive usage (0 = block-level only)
      * @notice Pay-per-use: Pay each time you use the equipment
      *         No storage writes for access expiry (gas efficient)
      *         For exclusive equipment, marks as in use immediately
      *         For non-exclusive equipment, multiple users can use simultaneously
-     *         If _usageDuration == 0: Block-level exclusivity (prevents same-block concurrent txns)
-     *         If _usageDuration > 0: Real time window exclusivity (prevents usage for duration)
+     *         Usage duration is provider-controlled (set at listing time)
+     *         If defaultUsageDuration == 0: Block-level exclusivity (prevents same-block concurrent txns)
+     *         If defaultUsageDuration > 0: Real time window exclusivity (prevents usage for duration)
      *         Tracking done via event emission for off-chain analytics
      */
-    function useEquipment(uint256 _rentalId, uint256 _usageDuration) external payable rentalAvailable(_rentalId) {
+    function useEquipment(uint256 _rentalId) external payable rentalAvailable(_rentalId) {
         Rental memory rental = rentals[_rentalId];
         
         // For exclusive equipment, mark as in use BEFORE payment to prevent concurrent transactions
         // This ensures exclusivity is enforced even for pay-per-use
         if (rental.exclusive) {
+            uint256 usageDuration = defaultUsageDuration[_rentalId];
+            
             uint256 exclusiveUntil;
-            if (_usageDuration == 0) {
+            if (usageDuration == 0) {
                 // Block-level only: prevents concurrent transactions in same block
                 exclusiveUntil = block.timestamp + 1;
             } else {
-                // Real time window: prevents usage for specified duration
-                exclusiveUntil = block.timestamp + _usageDuration;
+                // Real time window: prevents usage for specified duration (provider-controlled)
+                exclusiveUntil = block.timestamp + usageDuration;
             }
             _startExclusiveRental(_rentalId, msg.sender, exclusiveUntil);
         }
