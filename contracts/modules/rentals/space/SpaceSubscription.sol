@@ -113,9 +113,10 @@ contract SpaceSubscription is RentalBase {
         // Check for existing deposit first (charge once per renter pattern)
         uint256 existingDeposit = depositsHeld[msg.sender][_rentalId];
         
-        // Calculate required payment: only charge deposit if user doesn't already have one
-        uint256 depositToCharge = (existingDeposit == 0) ? _deposit : 0;
-        uint256 totalRequired = price + depositToCharge;
+        // Calculate deposit delta: only charge difference if deposit requirement increased
+        // If deposit decreased, keep the higher existing deposit (user benefit)
+        uint256 depositDelta = (_deposit > existingDeposit) ? (_deposit - existingDeposit) : 0;
+        uint256 totalRequired = price + depositDelta;
         
         // Check payment upfront (before any refunds)
         if (msg.value < totalRequired) {
@@ -126,11 +127,11 @@ contract SpaceSubscription is RentalBase {
         // Add rental price to provider's earnings (deposit is held separately)
         earnings[services[_rentalId].provider] += price;
         
-        // Handle deposit: charge only if user doesn't already have one (charge once per renter)
-        if (depositToCharge > 0) {
-            // No existing deposit: set new deposit
-            depositsHeld[msg.sender][_rentalId] = _deposit;
-            totalDepositsHeld += _deposit; // Track total deposits for escrow accounting
+        // Handle deposit: charge delta if deposit requirement increased
+        if (depositDelta > 0) {
+            // Deposit requirement increased: charge the difference
+            depositsHeld[msg.sender][_rentalId] = _deposit; // Update to new deposit amount
+            totalDepositsHeld += depositDelta; // Only add the delta
         } else if (existingDeposit > 0 && _deposit == 0) {
             // Deposit requirement removed: refund existing deposit
             depositsHeld[msg.sender][_rentalId] = 0;
@@ -142,7 +143,7 @@ contract SpaceSubscription is RentalBase {
                 revert TransferFailed(msg.sender, existingDeposit);
             }
         }
-        // If existingDeposit > 0 and _deposit > 0: deposit already held, no action needed
+        // If existingDeposit >= _deposit > 0: deposit already sufficient, no action needed
         
         // Increment usage count
         services[_rentalId].usageCount += 1;
