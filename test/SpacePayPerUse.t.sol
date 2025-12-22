@@ -178,6 +178,9 @@ contract SpacePayPerUseTest is Test {
         vm.warp(exclusiveUntil1 + 1);
         
         // Second use by different user
+        // Capture block.timestamp right before the call to useSpace
+        // This is the timestamp that will be used inside useSpace to calculate exclusiveUntil2
+        uint256 timestampAtCall = block.timestamp;
         vm.prank(user2);
         spacePayPerUse.useSpace{value: PRICE}(RENTAL_ID);
         
@@ -187,20 +190,16 @@ contract SpacePayPerUseTest is Test {
         assertEq(currentRenter2, user2);
         assertEq(usageCount2, 2);
         
-        // Verify exclusivity duration: exclusiveUntil2 should be based on defaultUsageDuration
-        // The key insight: exclusiveUntil2 is set INSIDE useSpace as block.timestamp + defaultUsageDuration
-        // We verify that the stored defaultUsageDuration matches what we set
+        // Verify exclusivity duration: exclusiveUntil2 should be timestampAtCall + shortDuration
+        // We captured timestampAtCall right before the call, so it should match the block.timestamp
+        // used inside useSpace to calculate exclusiveUntil2
         uint256 storedDuration = spacePayPerUse.defaultUsageDuration(RENTAL_ID);
         assertEq(storedDuration, shortDuration, "defaultUsageDuration should match what we set");
         
-        // Verify that exclusiveUntil2 - block.timestamp equals storedDuration (within tolerance)
-        // This is the most robust check: we verify the actual duration, not absolute timestamps
-        // We check immediately after the call, so block.timestamp should be the same as when
-        // exclusiveUntil2 was set inside useSpace
-        uint256 actualDuration = exclusiveUntil2 > block.timestamp ? exclusiveUntil2 - block.timestamp : 0;
-        assertGe(actualDuration, storedDuration, "actualDuration should be at least storedDuration");
-        // Allow 1 second tolerance for block-level variations
-        assertLe(actualDuration, storedDuration + 1, "actualDuration should not exceed storedDuration by more than 1 second");
+        // Verify exclusiveUntil2 is exactly timestampAtCall + storedDuration (within 1s tolerance)
+        uint256 expectedExclusiveUntil2 = timestampAtCall + storedDuration;
+        assertGe(exclusiveUntil2, expectedExclusiveUntil2, "exclusiveUntil2 should be at least expected value");
+        assertLe(exclusiveUntil2, expectedExclusiveUntil2 + 1, "exclusiveUntil2 should not exceed expected value by more than 1 second");
 
         // Fast forward past exclusivity again
         vm.warp(exclusiveUntil2 + 1);
