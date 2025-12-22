@@ -178,8 +178,9 @@ contract SpacePayPerUseTest is Test {
         vm.warp(exclusiveUntil1 + 1);
         
         // Second use by different user
-        // Capture timestamp right before the call, as block.timestamp might increment slightly
-        uint256 timestampBeforeUse2 = block.timestamp;
+        // Capture the expected exclusiveUntil value before the call
+        // exclusiveUntil2 should be block.timestamp + shortDuration when useSpace is called
+        uint256 expectedExclusiveUntil2 = block.timestamp + shortDuration;
         vm.prank(user2);
         spacePayPerUse.useSpace{value: PRICE}(RENTAL_ID);
         
@@ -189,15 +190,11 @@ contract SpacePayPerUseTest is Test {
         assertEq(currentRenter2, user2);
         assertEq(usageCount2, 2);
         
-        // Verify exclusivity duration: exclusiveUntil2 should be timestampBeforeUse2 + shortDuration
-        // The key insight: exclusiveUntil2 is set INSIDE useSpace using block.timestamp at that moment
-        // Since we warped to exclusiveUntil1 + 1, timestampBeforeUse2 should be exclusiveUntil1 + 1
-        // And exclusiveUntil2 should be (exclusiveUntil1 + 1) + shortDuration
-        // So the duration should always be exactly shortDuration (or shortDuration + 1 for block-level tolerance)
-        uint256 duration2 = exclusiveUntil2 > timestampBeforeUse2 ? exclusiveUntil2 - timestampBeforeUse2 : 0;
-        assertGe(duration2, shortDuration, "Duration should be at least shortDuration");
-        // Allow up to 5 seconds tolerance to handle any block.timestamp variations in CI
-        assertLe(duration2, shortDuration + 5, "Duration should not exceed shortDuration by more than 5 seconds");
+        // Verify exclusivity duration: exclusiveUntil2 should be exactly block.timestamp + shortDuration
+        // (within 1 second tolerance for block-level variations)
+        // We check against the expected value we calculated before the call
+        assertGe(exclusiveUntil2, expectedExclusiveUntil2, "exclusiveUntil2 should be at least expected value");
+        assertLe(exclusiveUntil2, expectedExclusiveUntil2 + 1, "exclusiveUntil2 should not exceed expected value by more than 1 second");
 
         // Fast forward past exclusivity again
         vm.warp(exclusiveUntil2 + 1);
