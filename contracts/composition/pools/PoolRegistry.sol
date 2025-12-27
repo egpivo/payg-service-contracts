@@ -519,9 +519,6 @@ contract PoolRegistry is PayAsYouGoBase {
      */
     function purchasePool(uint256 _poolId, address _affiliate) external payable poolExists(_poolId) poolNotPaused(_poolId) serviceExists(_poolId) nonReentrant {
         Pool storage pool = pools[_poolId];
-        if (!pool.exists) {
-            revert PoolDoesNotExist(_poolId);
-        }
         
         uint256 required = services[_poolId].price; // Single source of truth
         if (msg.value < required) {
@@ -540,13 +537,13 @@ contract PoolRegistry is PayAsYouGoBase {
         // Note: Affiliate tracking via event only in v1 (no fee collection)
         
         // Split net revenue among members
-        uint256[] memory memberIds = poolMembers[_poolId];
-        uint256 memberCount = memberIds.length;
+        bytes32[] memory memberKeys = poolMembers[_poolId];
+        uint256 memberCount = memberKeys.length;
         
         // Build array of shares for SplitLib
         uint256[] memory memberShares = new uint256[](memberCount);
         for (uint256 i = 0; i < memberCount; i++) {
-            memberShares[i] = members[_poolId][memberIds[i]].shares;
+            memberShares[i] = members[_poolId][memberKeys[i]].shares;
         }
         
         // Calculate revenue splits
@@ -559,26 +556,25 @@ contract PoolRegistry is PayAsYouGoBase {
         // Distribute revenue to each member's provider
         // Provider is fetched from each member's registry at payout time
         for (uint256 i = 0; i < memberCount; i++) {
-            uint256 serviceId = memberIds[i];
-            Member memory member = members[_poolId][serviceId];
+            Member memory member = members[_poolId][memberKeys[i]];
             IServiceRegistry registry = IServiceRegistry(member.registry);
             
-            (, address provider, ) = registry.getService(serviceId);
-            if (provider == address(0)) {
-                revert ServiceDoesNotExistInRegistry(serviceId, member.registry);
+            (, address provider, bool exists) = registry.getService(member.serviceId);
+            if (!exists) {
+                revert ServiceDoesNotExistInRegistry(member.serviceId, member.registry);
             }
+            // Credit to earnings (all payouts via earnings accounting, no direct transfers)
             earnings[provider] += payouts[i];
         }
         
         // Give remainder to first member's provider (deterministic tie-breaker)
         if (remainder > 0) {
-            uint256 firstServiceId = memberIds[0];
-            Member memory firstMember = members[_poolId][firstServiceId];
+            Member memory firstMember = members[_poolId][memberKeys[0]];
             IServiceRegistry registry = IServiceRegistry(firstMember.registry);
             
-            (, address firstProvider, ) = registry.getService(firstServiceId);
-            if (firstProvider == address(0)) {
-                revert ServiceDoesNotExistInRegistry(firstServiceId, firstMember.registry);
+            (, address firstProvider, bool exists) = registry.getService(firstMember.serviceId);
+            if (!exists) {
+                revert ServiceDoesNotExistInRegistry(firstMember.serviceId, firstMember.registry);
             }
             earnings[firstProvider] += remainder;
         }
