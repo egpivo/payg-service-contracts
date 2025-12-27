@@ -505,6 +505,36 @@ contract PoolRegistry is PayAsYouGoBase {
     }
     
     /**
+     * @dev Get detailed member information for a pool (UI/off-chain friendly)
+     * @param _poolId The ID of the pool
+     * @return serviceIds Array of service IDs
+     * @return registries Array of registry addresses
+     * @return sharesArray Array of shares for each member
+     * @notice This function reduces RPC calls for frontend/indexers by returning all member data in one call
+     */
+    function getPoolMembersDetailed(uint256 _poolId) external view poolExists(_poolId) returns (
+        uint256[] memory serviceIds,
+        address[] memory registries,
+        uint256[] memory sharesArray
+    ) {
+        bytes32[] memory memberKeys = poolMembers[_poolId];
+        uint256 memberCount = memberKeys.length;
+        
+        serviceIds = new uint256[](memberCount);
+        registries = new address[](memberCount);
+        sharesArray = new uint256[](memberCount);
+        
+        for (uint256 i = 0; i < memberCount; i++) {
+            Member memory member = members[_poolId][memberKeys[i]];
+            serviceIds[i] = member.serviceId;
+            registries[i] = member.registry;
+            sharesArray[i] = member.shares;
+        }
+        
+        return (serviceIds, registries, sharesArray);
+    }
+    
+    /**
      * @dev Purchase access to a pool (v1 MVP - SubscriptionPool only)
      * @param _poolId The ID of the pool to purchase
      * @param _affiliate Optional affiliate address (tracked via event in v1, no fee)
