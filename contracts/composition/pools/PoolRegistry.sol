@@ -10,25 +10,48 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 /**
  * @title PoolRegistry
- * @dev A universal pool-based access model - composition layer across all service modules
+ * @dev Universal Pool Protocol - Composition Layer for Cross-Module Service Aggregation
  * 
- * This contract implements a provider-side membership pool as a protocol-level composition layer:
- * - Works with any service type (articles, rentals, future services) via IServiceRegistry interface
- * - Pool members are providers/services from any module (not users)
- * - Members participate in revenue sharing via weighted shares
- * - Users purchase access to the pool (not membership)
- * - Only pool creator/operator can modify membership (Policy A)
+ * Core Philosophy: "One payment, multiple providers, deterministic settlement."
+ * 
+ * Pool Protocol supports TWO distinct membership models on the same foundation:
+ * 
+ * 1. PAYER MEMBERSHIP (User Subscription):
+ *    - Users buy: Access rights to a set of services for a time period (all-you-can-eat)
+ *    - Example: Medium membership, venue pass, software subscription bundle
+ *    - User = Access holder (NOT a pool member)
+ * 
+ * 2. PAYEE MEMBERSHIP (Provider Alliance):
+ *    - Providers join: A supply-side alliance that shares revenue
+ *    - Example: Creator alliance, equipment rental consortium, API provider network
+ *    - Provider = Pool member (supply side)
  * 
  * Architecture:
  * - PoolRegistry is a composition layer, NOT coupled to specific modules
- * - Articles, rentals, etc. are just "services that can be bundled into pools"
- * - Modules don't need to know pools exist (clean separation)
+ * - Articles, rentals, future services are all "services that can be bundled"
+ * - Modules don't need to know pools exist (clean separation of concerns)
  * - Pool accesses modules through IServiceRegistry interface
  * 
+ * What Pool Handles:
+ * - Bundle/pool purchase and payment
+ * - Revenue splitting (weighted shares, fees, deterministic remainder)
+ * - Access entitlement (time-based or permanent)
+ * 
+ * What Modules Handle:
+ * - Domain-specific logic (availability, exclusivity, content management)
+ * - Service lifecycle and state
+ * - Business rules (who can use, when, how)
+ * 
+ * Current Implementation:
+ * - Pricing Model: SubscriptionPool (pay once, get access for duration)
+ *   - Future: PayPerUsePool, CreditPool, TieredPool can be added
+ * - Membership Policy: Policy A (operator-controlled)
+ *   - Future: Policy B (provider join/leave), Policy C (permissionless)
+ * 
  * Terminology:
- * - Pool Member = Provider/Service from any module (supply side)
- * - Pool Creator/Operator = Manager
- * - User = Access holder (demand side, not a member)
+ * - Pool Member = Provider/Service from any module (supply side alliance)
+ * - Pool Creator/Operator = Manager who controls membership
+ * - User = Access holder (demand side, purchases access, not membership)
  */
 contract PoolRegistry is PayAsYouGoBase {
     

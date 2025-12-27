@@ -24,6 +24,13 @@ A Solidity base contract for pay-as-you-go services with example implementations
 - **DigitalSubscription** - Credit-based or time-based
 - **RentalBundle** - Bundled rentals with revenue sharing
 
+### Composition Layer
+- **PoolRegistry** - Universal pool protocol for cross-module service aggregation
+  - **Payer Membership**: Users buy access to multiple services (all-you-can-eat)
+  - **Payee Membership**: Providers form alliances with revenue sharing
+  - Works with any service type via IServiceRegistry interface
+  - Supports weighted revenue splitting, fees (operator/affiliate), and access management
+
 ## Features
 - Register a service with an ID and price
 - Users pay to use a service
