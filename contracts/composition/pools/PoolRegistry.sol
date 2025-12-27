@@ -5,8 +5,6 @@ import {PayAsYouGoBase} from "../../core/PayAsYouGoBase.sol";
 import {IServiceRegistry} from "../../interfaces/IServiceRegistry.sol";
 import {AccessLib} from "../../core/AccessLib.sol";
 import {SplitLib} from "./SplitLib.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title PoolRegistry
@@ -60,12 +58,12 @@ contract PoolRegistry is PayAsYouGoBase {
     error PoolDoesNotExist(uint256 poolId);
     error PoolMustContainAtLeastOneMember();
     error TooManyMembersInPool(uint256 count, uint256 max);
-    error DuplicateMemberInPool(uint256 serviceId);
+    error DuplicateMemberInPool(uint256 serviceId, address registry);
     error ServiceDoesNotExistInRegistry(uint256 serviceId, address registry);
     error InvalidShare(uint256 share);
     error OnlyPoolOperatorCanCall(uint256 poolId, address caller);
     error PoolIsPaused(uint256 poolId);
-    error MemberDoesNotExist(uint256 poolId, uint256 serviceId);
+    error MemberDoesNotExist(uint256 poolId, uint256 serviceId, address registry);
     error CannotRemoveOnlyMember(uint256 poolId);
     error InsufficientPaymentForPool(uint256 poolId, uint256 required, uint256 sent);
     error RefundFailed(address recipient, uint256 amount);
@@ -82,30 +80,29 @@ contract PoolRegistry is PayAsYouGoBase {
         address operator; // Manager who controls membership (creator becomes operator)
         uint16 operatorFeeBps; // Operator fee in basis points (e.g., 200 = 2%)
         uint256 totalShares; // Sum of all member shares
-        uint256 price; // Fixed pool price (set at creation, independent of member prices)
         uint256 accessDuration; // Access duration in seconds (0 = permanent)
         bool exists;
         bool paused; // If paused, purchases are disabled
+        // Note: price is stored in services[_poolId].price (single source of truth)
     }
     
     // Member structure
     // Stores serviceId + registry + shares
-        // Provider is fetched from registry.getService(serviceId) at payout time
+    // Provider is fetched from registry.getService(serviceId) at payout time
     struct Member {
         uint256 serviceId;
         address registry; // Service registry address (IServiceRegistry)
         uint256 shares;
-        bool exists;
     }
     
     // Mapping from pool ID to Pool
     mapping(uint256 => Pool) public pools;
     
-    // Mapping from pool ID to array of member service IDs
-    mapping(uint256 => uint256[]) public poolMembers;
-    
-    // Mapping from pool ID to service ID to Member
-    mapping(uint256 => mapping(uint256 => Member)) public members;
+    // Member key = keccak256(abi.encode(registry, serviceId))
+    // This allows same serviceId from different registries in the same pool
+    mapping(uint256 => bytes32[]) public poolMembers; // store memberKeys
+    mapping(uint256 => mapping(bytes32 => Member)) public members; // key by memberKey
+    mapping(uint256 => mapping(bytes32 => bool)) public memberExists;
     
     // Mapping from user address to pool ID to access expiry
     mapping(address => mapping(uint256 => uint256)) public poolAccessExpiry;
@@ -192,11 +189,13 @@ contract PoolRegistry is PayAsYouGoBase {
             revert InvalidShare(0); // Use InvalidShare to indicate length mismatch
         }
         
-        // Prevent duplicate service IDs (same serviceId + registry combination)
+        // Prevent duplicate members (same registry + serviceId combination)
         for (uint256 i = 0; i < _serviceIds.length; i++) {
+            bytes32 memberKeyI = keccak256(abi.encode(_registries[i], _serviceIds[i]));
             for (uint256 j = i + 1; j < _serviceIds.length; j++) {
-                if (_serviceIds[i] == _serviceIds[j] && _registries[i] == _registries[j]) {
-                    revert DuplicateMemberInPool(_serviceIds[i]);
+                bytes32 memberKeyJ = keccak256(abi.encode(_registries[j], _serviceIds[j]));
+                if (memberKeyI == memberKeyJ) {
+                    revert DuplicateMemberInPool(_serviceIds[i], _registries[i]);
                 }
             }
         }
@@ -241,26 +240,27 @@ contract PoolRegistry is PayAsYouGoBase {
         emit ServiceRegistered(_poolId, address(0), _price);
         
         // Store pool data (v1 MVP: operator = creator, no affiliate fee)
+        // Note: price stored in services[_poolId].price (single source of truth)
         pools[_poolId] = Pool({
             poolId: _poolId,
             operator: msg.sender, // Creator becomes operator
             operatorFeeBps: _operatorFeeBps,
             totalShares: totalShares,
-            price: _price,
             accessDuration: _accessDuration,
             exists: true,
             paused: false
         });
         
-        // Store members
+        // Store members using memberKey = keccak256(abi.encode(registry, serviceId))
         for (uint256 i = 0; i < _serviceIds.length; i++) {
-            poolMembers[_poolId].push(_serviceIds[i]);
-            members[_poolId][_serviceIds[i]] = Member({
+            bytes32 memberKey = keccak256(abi.encode(_registries[i], _serviceIds[i]));
+            poolMembers[_poolId].push(memberKey);
+            members[_poolId][memberKey] = Member({
                 serviceId: _serviceIds[i],
                 registry: _registries[i],
-                shares: _shares[i],
-                exists: true
+                shares: _shares[i]
             });
+            memberExists[_poolId][memberKey] = true;
         }
         
         emit PoolCreated(_poolId, msg.sender, _serviceIds.length, _price);
@@ -291,6 +291,7 @@ contract PoolRegistry is PayAsYouGoBase {
      * @param _registry The service registry address
      * @param _shares The shares for this member
      * @notice Only pool operator can add members
+     *         Member key = keccak256(abi.encode(registry, serviceId)) allows same serviceId from different registries
      */
     function addMember(
         uint256 _poolId,
@@ -298,9 +299,6 @@ contract PoolRegistry is PayAsYouGoBase {
         address _registry,
         uint256 _shares
     ) external poolExists(_poolId) onlyPoolOperator(_poolId) {
-        if (members[_poolId][_serviceId].exists) {
-            revert DuplicateMemberInPool(_serviceId);
-        }
         if (_registry == address(0)) {
             revert InvalidRegistry(_registry);
         }
@@ -311,20 +309,25 @@ contract PoolRegistry is PayAsYouGoBase {
             revert TooManyMembersInPool(poolMembers[_poolId].length + 1, MAX_MEMBERS_PER_POOL);
         }
         
+        bytes32 memberKey = keccak256(abi.encode(_registry, _serviceId));
+        if (memberExists[_poolId][memberKey]) {
+            revert DuplicateMemberInPool(_serviceId, _registry);
+        }
+        
         // Verify service exists in registry
         IServiceRegistry registry = IServiceRegistry(_registry);
-            (,, bool exists) = registry.getService(_serviceId);
+        (,, bool exists) = registry.getService(_serviceId);
         if (!exists) {
             revert ServiceDoesNotExistInRegistry(_serviceId, _registry);
         }
         
-        poolMembers[_poolId].push(_serviceId);
-        members[_poolId][_serviceId] = Member({
+        poolMembers[_poolId].push(memberKey);
+        members[_poolId][memberKey] = Member({
             serviceId: _serviceId,
             registry: _registry,
-            shares: _shares,
-            exists: true
+            shares: _shares
         });
+        memberExists[_poolId][memberKey] = true;
         
         pools[_poolId].totalShares += _shares;
         
@@ -335,32 +338,37 @@ contract PoolRegistry is PayAsYouGoBase {
      * @dev Remove a member from a pool
      * @param _poolId The ID of the pool
      * @param _serviceId The service ID to remove
+     * @param _registry The service registry address
      * @notice Only pool operator can remove members
      *         Cannot remove if it's the only member
+     *         Uses memberKey to correctly identify member (allows same serviceId from different registries)
      */
     function removeMember(
         uint256 _poolId,
-        uint256 _serviceId
+        uint256 _serviceId,
+        address _registry
     ) external poolExists(_poolId) onlyPoolOperator(_poolId) {
-        if (!members[_poolId][_serviceId].exists) {
-            revert MemberDoesNotExist(_poolId, _serviceId);
+        bytes32 memberKey = keccak256(abi.encode(_registry, _serviceId));
+        if (!memberExists[_poolId][memberKey]) {
+            revert MemberDoesNotExist(_poolId, _serviceId, _registry);
         }
         if (poolMembers[_poolId].length == 1) {
             revert CannotRemoveOnlyMember(_poolId);
         }
         
-        Member memory member = members[_poolId][_serviceId];
+        Member memory member = members[_poolId][memberKey];
         pools[_poolId].totalShares -= member.shares;
         
-        // Remove from members mapping
-        delete members[_poolId][_serviceId];
+        // Remove from mappings
+        delete members[_poolId][memberKey];
+        memberExists[_poolId][memberKey] = false;
         
         // Remove from array
-        uint256[] storage memberIds = poolMembers[_poolId];
-        for (uint256 i = 0; i < memberIds.length; i++) {
-            if (memberIds[i] == _serviceId) {
-                memberIds[i] = memberIds[memberIds.length - 1];
-                memberIds.pop();
+        bytes32[] storage memberKeys = poolMembers[_poolId];
+        for (uint256 i = 0; i < memberKeys.length; i++) {
+            if (memberKeys[i] == memberKey) {
+                memberKeys[i] = memberKeys[memberKeys.length - 1];
+                memberKeys.pop();
                 break;
             }
         }
@@ -372,22 +380,26 @@ contract PoolRegistry is PayAsYouGoBase {
      * @dev Update shares for a member
      * @param _poolId The ID of the pool
      * @param _serviceId The service ID of the member
+     * @param _registry The service registry address
      * @param _newShares The new shares value
      * @notice Only pool operator can update shares
+     *         Uses memberKey to correctly identify member
      */
     function setShares(
         uint256 _poolId,
         uint256 _serviceId,
+        address _registry,
         uint256 _newShares
     ) external poolExists(_poolId) onlyPoolOperator(_poolId) {
-        if (!members[_poolId][_serviceId].exists) {
-            revert MemberDoesNotExist(_poolId, _serviceId);
+        bytes32 memberKey = keccak256(abi.encode(_registry, _serviceId));
+        if (!memberExists[_poolId][memberKey]) {
+            revert MemberDoesNotExist(_poolId, _serviceId, _registry);
         }
         if (_newShares == 0) {
             revert InvalidShare(_newShares);
         }
         
-        Member storage member = members[_poolId][_serviceId];
+        Member storage member = members[_poolId][memberKey];
         uint256 oldShares = member.shares;
         
         pools[_poolId].totalShares = pools[_poolId].totalShares - oldShares + _newShares;
@@ -403,7 +415,7 @@ contract PoolRegistry is PayAsYouGoBase {
      * @return operator Pool operator address (creator becomes operator)
      * @return memberCount Number of members
      * @return totalShares Total shares in pool
-     * @return price Pool purchase price (fixed, independent of member prices)
+     * @return price Pool purchase price (from services[_poolId].price, single source of truth)
      * @return operatorFeeBps Operator fee in basis points
      * @return paused Whether pool is paused
      * @return accessDuration Access duration (0 = permanent)
@@ -426,7 +438,7 @@ contract PoolRegistry is PayAsYouGoBase {
             pool.operator,
             poolMembers[_poolId].length,
             pool.totalShares,
-            pool.price,
+            services[_poolId].price, // Single source of truth
             pool.operatorFeeBps,
             pool.paused,
             pool.accessDuration,
@@ -438,6 +450,7 @@ contract PoolRegistry is PayAsYouGoBase {
      * @dev Get member details
      * @param _poolId The ID of the pool
      * @param _serviceId The service ID of the member
+     * @param _registry The service registry address
      * @return serviceId Member service ID
      * @return registry Service registry address
      * @return shares Member shares
@@ -445,24 +458,50 @@ contract PoolRegistry is PayAsYouGoBase {
      */
     function getMember(
         uint256 _poolId,
-        uint256 _serviceId
+        uint256 _serviceId,
+        address _registry
     ) external view poolExists(_poolId) returns (
         uint256 serviceId,
         address registry,
         uint256 shares,
         bool exists
     ) {
-        Member memory member = members[_poolId][_serviceId];
-        return (member.serviceId, member.registry, member.shares, member.exists);
+        bytes32 memberKey = keccak256(abi.encode(_registry, _serviceId));
+        Member memory member = members[_poolId][memberKey];
+        exists = memberExists[_poolId][memberKey];
+        return (member.serviceId, member.registry, member.shares, exists);
     }
     
     /**
-     * @dev Get all member service IDs for a pool
+     * @dev Get all member keys for a pool
      * @param _poolId The ID of the pool
-     * @return Array of service IDs
+     * @return Array of member keys (bytes32 = keccak256(abi.encode(registry, serviceId)))
      */
-    function getPoolMembers(uint256 _poolId) external view poolExists(_poolId) returns (uint256[] memory) {
+    function getPoolMembers(uint256 _poolId) external view poolExists(_poolId) returns (bytes32[] memory) {
         return poolMembers[_poolId];
+    }
+    
+    /**
+     * @dev Get member details by memberKey
+     * @param _poolId The ID of the pool
+     * @param _memberKey The member key (keccak256(abi.encode(registry, serviceId)))
+     * @return serviceId Member service ID
+     * @return registry Service registry address
+     * @return shares Member shares
+     * @return exists Whether member exists
+     */
+    function getMemberByKey(
+        uint256 _poolId,
+        bytes32 _memberKey
+    ) external view poolExists(_poolId) returns (
+        uint256 serviceId,
+        address registry,
+        uint256 shares,
+        bool exists
+    ) {
+        Member memory member = members[_poolId][_memberKey];
+        exists = memberExists[_poolId][_memberKey];
+        return (member.serviceId, member.registry, member.shares, exists);
     }
     
     /**
@@ -471,7 +510,7 @@ contract PoolRegistry is PayAsYouGoBase {
      * @param _affiliate Optional affiliate address (tracked via event in v1, no fee)
      * @notice Purchase flow:
      *         1. Calculate operator fee
-     *         2. Net revenue = pool.price - operatorFee
+     *         2. Net revenue = services[_poolId].price - operatorFee
      *         3. Split net revenue among members based on shares
      *         4. Remainder goes to first member (deterministic tie-breaker)
      *         5. All payouts via earnings accounting (no direct transfers)
@@ -484,7 +523,7 @@ contract PoolRegistry is PayAsYouGoBase {
             revert PoolDoesNotExist(_poolId);
         }
         
-        uint256 required = pool.price;
+        uint256 required = services[_poolId].price; // Single source of truth
         if (msg.value < required) {
             revert InsufficientPaymentForPool(_poolId, required, msg.value);
         }

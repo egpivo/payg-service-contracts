@@ -10,6 +10,10 @@ pragma solidity ^0.8.0;
  */
 library SplitLib {
     
+    // Custom Errors
+    error SplitInvalidTotalShares();
+    error SplitEmptyMembers();
+    
     /**
      * @dev Calculate payout amounts for each member based on shares
      * @param netAmount Net amount to split (after fees, if any)
@@ -25,8 +29,12 @@ library SplitLib {
         uint256[] memory memberShares,
         uint256 totalShares
     ) internal pure returns (uint256[] memory payouts, uint256 remainder) {
-        require(totalShares > 0, "SplitLib: totalShares must be greater than 0");
-        require(memberShares.length > 0, "SplitLib: memberShares cannot be empty");
+        if (totalShares == 0) {
+            revert SplitInvalidTotalShares();
+        }
+        if (memberShares.length == 0) {
+            revert SplitEmptyMembers();
+        }
         
         uint256 memberCount = memberShares.length;
         payouts = new uint256[](memberCount);
@@ -44,27 +52,6 @@ library SplitLib {
         remainder = netAmount - distributedAmount;
         
         return (payouts, remainder);
-    }
-    
-    /**
-     * @dev Calculate a single member's payout
-     * @param netAmount Net amount to split
-     * @param memberShare Member's share
-     * @param totalShares Total shares across all members
-     * @return payout Amount for this member
-     * @return remainder Remaining amount (only non-zero if this is the only member)
-     */
-    function calculateMemberPayout(
-        uint256 netAmount,
-        uint256 memberShare,
-        uint256 totalShares
-    ) internal pure returns (uint256 payout, uint256 remainder) {
-        require(totalShares > 0, "SplitLib: totalShares must be greater than 0");
-        
-        payout = (netAmount * memberShare) / totalShares;
-        remainder = netAmount - payout;
-        
-        return (payout, remainder);
     }
 }
 
