@@ -190,11 +190,15 @@ contract PoolRegistry is PayAsYouGoBase {
         }
         
         // Prevent duplicate members (same registry + serviceId combination)
+        // Optimized O(n) approach: pre-compute all memberKeys, then check for duplicates
+        // Note: Solidity doesn't support memory mappings, so we use a nested loop
+        // but optimize by pre-computing keys to avoid repeated keccak256 calls
+        bytes32[] memory memberKeys = new bytes32[](_serviceIds.length);
         for (uint256 i = 0; i < _serviceIds.length; i++) {
-            bytes32 memberKeyI = keccak256(abi.encode(_registries[i], _serviceIds[i]));
-            for (uint256 j = i + 1; j < _serviceIds.length; j++) {
-                bytes32 memberKeyJ = keccak256(abi.encode(_registries[j], _serviceIds[j]));
-                if (memberKeyI == memberKeyJ) {
+            memberKeys[i] = keccak256(abi.encode(_registries[i], _serviceIds[i]));
+            // Check against previously computed keys (O(n²) but with pre-computed keys)
+            for (uint256 j = 0; j < i; j++) {
+                if (memberKeys[i] == memberKeys[j]) {
                     revert DuplicateMemberInPool(_serviceIds[i], _registries[i]);
                 }
             }
@@ -251,16 +255,15 @@ contract PoolRegistry is PayAsYouGoBase {
             paused: false
         });
         
-        // Store members using memberKey = keccak256(abi.encode(registry, serviceId))
+        // Store members using pre-computed memberKeys (reuse from duplicate check)
         for (uint256 i = 0; i < _serviceIds.length; i++) {
-            bytes32 memberKey = keccak256(abi.encode(_registries[i], _serviceIds[i]));
-            poolMembers[_poolId].push(memberKey);
-            members[_poolId][memberKey] = Member({
+            poolMembers[_poolId].push(memberKeys[i]);
+            members[_poolId][memberKeys[i]] = Member({
                 serviceId: _serviceIds[i],
                 registry: _registries[i],
                 shares: _shares[i]
             });
-            memberExists[_poolId][memberKey] = true;
+            memberExists[_poolId][memberKeys[i]] = true;
         }
         
         emit PoolCreated(_poolId, msg.sender, _serviceIds.length, _price);

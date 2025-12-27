@@ -17,6 +17,7 @@ library SplitLib {
     // Custom Errors
     error SplitInvalidTotalShares();
     error SplitEmptyMembers();
+    error SplitInvalidShare(uint256 share);
     
     /**
      * @dev Calculate payout amounts for each member based on shares
@@ -47,6 +48,9 @@ library SplitLib {
         // Use Math.mulDiv to prevent overflow when netAmount * memberShares[i] > uint256 max
         uint256 distributedAmount = 0;
         for (uint256 i = 0; i < memberCount; i++) {
+            if (memberShares[i] == 0) {
+                revert SplitInvalidShare(memberShares[i]);
+            }
             // Calculate: payout = (netAmount * memberShares[i]) / totalShares
             // Math.mulDiv handles overflow and rounding properly
             payouts[i] = Math.mulDiv(netAmount, memberShares[i], totalShares);
