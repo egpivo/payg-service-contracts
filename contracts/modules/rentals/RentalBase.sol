@@ -268,7 +268,7 @@ abstract contract RentalBase is PayAsYouGoBase, IRentalRegistry {
         uint256 exclusiveUntilTs
     ) {
         Rental memory rental = rentals[_rentalId];
-        (, uint256 servicePrice, address serviceProvider, uint256 usage) = getService(_rentalId);
+        (, uint256 servicePrice, address serviceProvider, uint256 usage) = getServiceDetails(_rentalId);
         
         return (
             rental.rentalId,

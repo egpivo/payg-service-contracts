@@ -206,14 +206,14 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard, IServiceRegistry {
     }
     
     /**
-     * @dev Get service details
+     * @dev Get service details (internal use - full details)
      * @param _serviceId The ID of the service
      * @return id Service ID
      * @return price Service price
      * @return provider Service provider address
      * @return usageCount Number of times service was used
      */
-    function getService(uint256 _serviceId) public view serviceExists(_serviceId) returns (
+    function getServiceDetails(uint256 _serviceId) public view serviceExists(_serviceId) returns (
         uint256 id,
         uint256 price,
         address provider,

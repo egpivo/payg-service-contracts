@@ -489,18 +489,16 @@ contract PoolRegistry is PayAsYouGoBase {
             revert InsufficientPaymentForPool(_poolId, required, msg.value);
         }
         
-        // Calculate fees
+        // Calculate fees (v1: only operator fee, affiliate tracked via event but no fee)
         uint256 operatorFee = (required * pool.operatorFeeBps) / 10_000;
-        uint256 affiliateFee = (_affiliate != address(0)) ? (required * pool.affiliateFeeBps) / 10_000 : 0;
-        uint256 net = required - operatorFee - affiliateFee;
+        uint256 net = required - operatorFee;
         
-        // Distribute fees
+        // Credit operator fee to earnings (all payouts via earnings accounting, no direct transfers)
         if (operatorFee > 0 && pool.operator != address(0)) {
             earnings[pool.operator] += operatorFee;
         }
-        if (affiliateFee > 0 && _affiliate != address(0)) {
-            earnings[_affiliate] += affiliateFee;
-        }
+        
+        // Note: Affiliate tracking via event only in v1 (no fee collection)
         
         // Split net revenue among members
         uint256[] memory memberIds = poolMembers[_poolId];
