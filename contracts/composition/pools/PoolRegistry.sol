@@ -69,7 +69,6 @@ contract PoolRegistry is PayAsYouGoBase {
     error RefundFailed(address recipient, uint256 amount);
     error InvalidFeeBps(uint16 feeBps);
     error InvalidRegistry(address registry);
-    error PoolPriceNotSet(uint256 poolId);
     
     // Keep pool sizes bounded to avoid gas griefing
     uint256 public constant MAX_MEMBERS_PER_POOL = 25;
@@ -112,8 +111,8 @@ contract PoolRegistry is PayAsYouGoBase {
     event PoolPaused(uint256 indexed poolId, address indexed operator);
     event PoolUnpaused(uint256 indexed poolId, address indexed operator);
     event MemberAdded(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry, uint256 shares);
-    event MemberRemoved(uint256 indexed poolId, uint256 indexed serviceId);
-    event MemberSharesUpdated(uint256 indexed poolId, uint256 indexed serviceId, uint256 oldShares, uint256 newShares);
+    event MemberRemoved(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry);
+    event MemberSharesUpdated(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry, uint256 oldShares, uint256 newShares);
     event PoolPurchased(uint256 indexed poolId, address indexed buyer, uint256 required, uint256 expiry, address indexed affiliate);
     
     /**
@@ -373,7 +372,7 @@ contract PoolRegistry is PayAsYouGoBase {
             }
         }
         
-        emit MemberRemoved(_poolId, _serviceId);
+        emit MemberRemoved(_poolId, _serviceId, _registry);
     }
     
     /**
@@ -405,7 +404,7 @@ contract PoolRegistry is PayAsYouGoBase {
         pools[_poolId].totalShares = pools[_poolId].totalShares - oldShares + _newShares;
         member.shares = _newShares;
         
-        emit MemberSharesUpdated(_poolId, _serviceId, oldShares, _newShares);
+        emit MemberSharesUpdated(_poolId, _serviceId, _registry, oldShares, _newShares);
     }
     
     /**
