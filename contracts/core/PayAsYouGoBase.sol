@@ -224,23 +224,20 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard, IServiceRegistry {
     }
     
     /**
-     * @dev Get service details with exists check (IServiceRegistry interface)
+     * @dev Get minimal service information (IServiceRegistry interface)
      * @param _serviceId The ID of the service
-     * @return id Service ID
      * @return price Service price
      * @return provider Service provider address
-     * @return usageCount Number of times service was used
      * @return exists Whether the service exists
      * @notice This method implements IServiceRegistry interface for PoolRegistry compatibility
+     *         Returns minimal data needed by Pool Protocol
      */
-    function getServiceInfo(uint256 _serviceId) external view override returns (
-        uint256,
-        uint256,
-        address,
-        uint256,
-        bool
+    function getService(uint256 _serviceId) external view override returns (
+        uint256 price,
+        address provider,
+        bool exists
     ) {
         Service memory service = services[_serviceId];
-        return (service.id, service.price, service.provider, service.usageCount, service.exists);
+        return (service.price, service.provider, service.exists);
     }
 }

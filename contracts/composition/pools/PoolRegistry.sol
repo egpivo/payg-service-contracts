@@ -71,26 +71,26 @@ contract PoolRegistry is PayAsYouGoBase {
     error RefundFailed(address recipient, uint256 amount);
     error InvalidFeeBps(uint16 feeBps);
     error InvalidRegistry(address registry);
+    error PoolPriceNotSet(uint256 poolId);
     
     // Keep pool sizes bounded to avoid gas griefing
     uint256 public constant MAX_MEMBERS_PER_POOL = 25;
     
-    // Pool structure
+    // Pool structure (v1 MVP)
     struct Pool {
         uint256 poolId;
-        address creator; // Creator of the pool (not necessarily a provider)
-        address operator; // Operator/manager who can modify members (can be same as creator)
+        address operator; // Manager who controls membership (creator becomes operator)
         uint16 operatorFeeBps; // Operator fee in basis points (e.g., 200 = 2%)
-        uint16 affiliateFeeBps; // Affiliate fee in basis points (e.g., 100 = 1%)
         uint256 totalShares; // Sum of all member shares
+        uint256 price; // Fixed pool price (set at creation, independent of member prices)
+        uint256 accessDuration; // Access duration in seconds (0 = permanent)
         bool exists;
         bool paused; // If paused, purchases are disabled
-        uint256 accessDuration; // Access duration in seconds (0 = permanent)
     }
     
     // Member structure
     // Stores serviceId + registry + shares
-        // Provider is fetched from registry.getServiceInfo(serviceId) at payout time
+        // Provider is fetched from registry.getService(serviceId) at payout time
     struct Member {
         uint256 serviceId;
         address registry; // Service registry address (IServiceRegistry)
@@ -159,16 +159,15 @@ contract PoolRegistry is PayAsYouGoBase {
     }
     
     /**
-     * @dev Create a pool with multiple provider members from any service registry
+     * @dev Create a pool with multiple provider members from any service registry (v1 MVP)
      * @param _poolId Unique identifier for the pool
      * @param _serviceIds Array of service IDs
      * @param _registries Array of registry addresses for each service (must match _serviceIds length)
      * @param _shares Array of shares for each member (must match _serviceIds length)
-     * @param _price Price to purchase access to the pool
+     * @param _price Fixed pool price (independent of member service prices)
      * @param _accessDuration Access duration in seconds (0 = permanent)
      * @param _operatorFeeBps Operator fee in basis points (max 10000 = 100%)
-     * @param _affiliateFeeBps Affiliate fee in basis points (max 10000 = 100%)
-     * @notice Pool creator becomes both creator and operator (can be changed later if needed)
+     * @notice Pool creator becomes operator. Affiliate tracking available via events but no fee in v1.
      *         Services can come from any module (articles, rentals, etc.) via their registries
      */
     function createPool(
@@ -178,8 +177,7 @@ contract PoolRegistry is PayAsYouGoBase {
         uint256[] memory _shares,
         uint256 _price,
         uint256 _accessDuration,
-        uint16 _operatorFeeBps,
-        uint16 _affiliateFeeBps
+        uint16 _operatorFeeBps
     ) external validPrice(_price) {
         if (pools[_poolId].exists) {
             revert PoolIdAlreadyExists(_poolId);
@@ -215,7 +213,7 @@ contract PoolRegistry is PayAsYouGoBase {
             
             // Check service exists via registry interface
             IServiceRegistry registry = IServiceRegistry(_registries[i]);
-            (,,, , bool exists) = registry.getServiceInfo(_serviceIds[i]);
+            (,, bool exists) = registry.getService(_serviceIds[i]);
             if (!exists) {
                 revert ServiceDoesNotExistInRegistry(_serviceIds[i], _registries[i]);
             }
@@ -223,15 +221,9 @@ contract PoolRegistry is PayAsYouGoBase {
             totalShares += _shares[i];
         }
         
-        // Validate fees
+        // Validate fees (v1: only operator fee)
         if (_operatorFeeBps > 10000) {
             revert InvalidFeeBps(_operatorFeeBps);
-        }
-        if (_affiliateFeeBps > 10000) {
-            revert InvalidFeeBps(_affiliateFeeBps);
-        }
-        if (_operatorFeeBps + _affiliateFeeBps > 10000) {
-            revert InvalidFeeBps(_operatorFeeBps + _affiliateFeeBps);
         }
         
         // Create service record for the pool (pool itself is a service in PayAsYouGoBase)
@@ -248,17 +240,16 @@ contract PoolRegistry is PayAsYouGoBase {
         serviceIds.push(_poolId);
         emit ServiceRegistered(_poolId, address(0), _price);
         
-        // Store pool data
+        // Store pool data (v1 MVP: operator = creator, no affiliate fee)
         pools[_poolId] = Pool({
             poolId: _poolId,
-            creator: msg.sender,
-            operator: msg.sender, // Creator becomes operator by default
+            operator: msg.sender, // Creator becomes operator
             operatorFeeBps: _operatorFeeBps,
-            affiliateFeeBps: _affiliateFeeBps,
             totalShares: totalShares,
+            price: _price,
+            accessDuration: _accessDuration,
             exists: true,
-            paused: false,
-            accessDuration: _accessDuration
+            paused: false
         });
         
         // Store members
@@ -406,29 +397,25 @@ contract PoolRegistry is PayAsYouGoBase {
     }
     
     /**
-     * @dev Get pool details
+     * @dev Get pool details (v1 MVP)
      * @param _poolId The ID of the pool
      * @return poolId Pool ID
-     * @return creator Pool creator address
-     * @return operator Pool operator address
+     * @return operator Pool operator address (creator becomes operator)
      * @return memberCount Number of members
      * @return totalShares Total shares in pool
-     * @return price Pool access price
+     * @return price Pool purchase price (fixed, independent of member prices)
      * @return operatorFeeBps Operator fee in basis points
-     * @return affiliateFeeBps Affiliate fee in basis points
      * @return paused Whether pool is paused
      * @return accessDuration Access duration (0 = permanent)
      * @return usageCount Number of times pool was purchased
      */
     function getPool(uint256 _poolId) external view poolExists(_poolId) returns (
         uint256 poolId,
-        address creator,
         address operator,
         uint256 memberCount,
         uint256 totalShares,
         uint256 price,
         uint16 operatorFeeBps,
-        uint16 affiliateFeeBps,
         bool paused,
         uint256 accessDuration,
         uint256 usageCount
@@ -436,13 +423,11 @@ contract PoolRegistry is PayAsYouGoBase {
         Pool memory pool = pools[_poolId];
         return (
             pool.poolId,
-            pool.creator,
             pool.operator,
             poolMembers[_poolId].length,
             pool.totalShares,
-            services[_poolId].price,
+            pool.price,
             pool.operatorFeeBps,
-            pool.affiliateFeeBps,
             pool.paused,
             pool.accessDuration,
             services[_poolId].usageCount
@@ -481,14 +466,16 @@ contract PoolRegistry is PayAsYouGoBase {
     }
     
     /**
-     * @dev Purchase access to a pool (revenue split among members based on shares, after fees)
+     * @dev Purchase access to a pool (v1 MVP - SubscriptionPool only)
      * @param _poolId The ID of the pool to purchase
-     * @param _affiliate Optional affiliate address (address(0) = no affiliate)
+     * @param _affiliate Optional affiliate address (tracked via event in v1, no fee)
      * @notice Purchase flow:
-     *         1. Calculate fees (operator + affiliate)
-     *         2. Net revenue = price - fees
+     *         1. Calculate operator fee
+     *         2. Net revenue = pool.price - operatorFee
      *         3. Split net revenue among members based on shares
-     *         4. Remainder goes to first member
+     *         4. Remainder goes to first member (deterministic tie-breaker)
+     *         5. All payouts via earnings accounting (no direct transfers)
+     *         6. Update access expiry (monotonic: extend from max(now, currentExpiry))
      *         Provider addresses are fetched from each member's registry at payout time
      */
     function purchasePool(uint256 _poolId, address _affiliate) external payable poolExists(_poolId) poolNotPaused(_poolId) serviceExists(_poolId) nonReentrant {
@@ -497,7 +484,7 @@ contract PoolRegistry is PayAsYouGoBase {
             revert PoolDoesNotExist(_poolId);
         }
         
-        uint256 required = services[_poolId].price;
+        uint256 required = pool.price;
         if (msg.value < required) {
             revert InsufficientPaymentForPool(_poolId, required, msg.value);
         }
@@ -539,7 +526,7 @@ contract PoolRegistry is PayAsYouGoBase {
             Member memory member = members[_poolId][serviceId];
             IServiceRegistry registry = IServiceRegistry(member.registry);
             
-            (, , address provider, , ) = registry.getServiceInfo(serviceId);
+            (, address provider, ) = registry.getService(serviceId);
             if (provider == address(0)) {
                 revert ServiceDoesNotExistInRegistry(serviceId, member.registry);
             }
@@ -552,7 +539,7 @@ contract PoolRegistry is PayAsYouGoBase {
             Member memory firstMember = members[_poolId][firstServiceId];
             IServiceRegistry registry = IServiceRegistry(firstMember.registry);
             
-            (, , address firstProvider, , ) = registry.getServiceInfo(firstServiceId);
+            (, address firstProvider, ) = registry.getService(firstServiceId);
             if (firstProvider == address(0)) {
                 revert ServiceDoesNotExistInRegistry(firstServiceId, firstMember.registry);
             }
