@@ -313,7 +313,7 @@ contract PoolRegistry is PayAsYouGoBase {
         
         // Verify service exists in registry
         IServiceRegistry registry = IServiceRegistry(_registry);
-        (,,, , bool exists) = registry.getServiceInfo(_serviceId);
+            (,, bool exists) = registry.getService(_serviceId);
         if (!exists) {
             revert ServiceDoesNotExistInRegistry(_serviceId, _registry);
         }
