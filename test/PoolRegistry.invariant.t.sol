@@ -10,18 +10,23 @@ contract PoolRegistryHandler is Test {
     
     // Track state
     mapping(uint256 => bool) public poolsCreated;
-    mapping(uint256 => mapping(uint256 => bool)) public membersAdded;
+    mapping(uint256 => mapping(bytes32 => bool)) public membersAdded; // Use memberKey instead of serviceId
     mapping(address => uint256) public expectedEarnings;
     mapping(uint256 => uint256) public expectedTotalShares;
     mapping(uint256 => address) public poolOperators;
+    mapping(uint256 => address) public poolRegistry; // Track registry per pool (using target as default)
     uint256[] public poolIds;
-    mapping(uint256 => uint256[]) public poolMemberIds;
+    mapping(uint256 => bytes32[]) public poolMemberKeys; // Store memberKeys instead of serviceIds
     mapping(uint256 => mapping(address => uint256)) public poolAccessExpiry;
     
     uint256 public totalEarnings;
     
     function poolIdsLength() public view returns (uint256) {
         return poolIds.length;
+    }
+    
+    function getPoolId(uint256 index) public view returns (uint256) {
+        return poolIds[index];
     }
     
     constructor(PoolRegistry _target) {
@@ -43,11 +48,13 @@ contract PoolRegistryHandler is Test {
         uint256 memberCount = bound(serviceIds.length, 1, 25);
         serviceIds = new uint256[](memberCount);
         shares = new uint256[](memberCount);
+        address[] memory registries = new address[](memberCount);
         
-        // Generate valid service IDs and shares
+        // Generate valid service IDs and shares, all from target registry
         for (uint256 i = 0; i < memberCount; i++) {
             serviceIds[i] = (uint256(keccak256(abi.encodePacked(poolId, i))) % 50) + 1;
             shares[i] = bound(uint256(keccak256(abi.encodePacked(poolId, i, "share"))), 1, type(uint128).max);
+            registries[i] = address(target); // Use target as registry
         }
         
         if (poolsCreated[poolId]) {
@@ -61,15 +68,17 @@ contract PoolRegistryHandler is Test {
         vm.deal(operator, 100 ether);
         
         vm.prank(operator);
-        try target.createPool(poolId, serviceIds, shares, price, duration, 0, 0) {
+        try target.createPool(poolId, serviceIds, registries, shares, price, duration, 0) {
             poolsCreated[poolId] = true;
             poolOperators[poolId] = operator;
+            poolRegistry[poolId] = address(target);
             poolIds.push(poolId);
             
             uint256 totalShares = 0;
             for (uint256 i = 0; i < memberCount; i++) {
-                poolMemberIds[poolId].push(serviceIds[i]);
-                membersAdded[poolId][serviceIds[i]] = true;
+                bytes32 memberKey = keccak256(abi.encode(registries[i], serviceIds[i]));
+                poolMemberKeys[poolId].push(memberKey);
+                membersAdded[poolId][memberKey] = true;
                 totalShares += shares[i];
             }
             expectedTotalShares[poolId] = totalShares;
@@ -83,13 +92,11 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        // Check if pool is paused
-        (,,,,,,,, bool paused,,) = target.getPool(poolId);
+        // Check if pool is paused and get price
+        (,,, , uint256 price, , bool paused, ,) = target.getPool(poolId);
         if (paused) {
             return;
         }
-        
-        (,,,,, uint256 price,,,,,) = target.getPool(poolId);
         if (price == 0) {
             return;
         }
@@ -118,19 +125,25 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        if (membersAdded[poolId][serviceId]) {
+        address registry = poolRegistry[poolId];
+        if (registry == address(0)) {
+            registry = address(target); // Default to target
+        }
+        
+        bytes32 memberKey = keccak256(abi.encode(registry, serviceId));
+        if (membersAdded[poolId][memberKey]) {
             return;
         }
         
-        uint256[] memory currentMembers = target.getPoolMembers(poolId);
+        bytes32[] memory currentMembers = target.getPoolMembers(poolId);
         if (currentMembers.length >= 25) {
             return;
         }
         
         vm.prank(operator);
-        try target.addMember(poolId, serviceId, shares) {
-            membersAdded[poolId][serviceId] = true;
-            poolMemberIds[poolId].push(serviceId);
+        try target.addMember(poolId, serviceId, registry, shares) {
+            membersAdded[poolId][memberKey] = true;
+            poolMemberKeys[poolId].push(memberKey);
             expectedTotalShares[poolId] += shares;
         } catch {}
     }
@@ -142,7 +155,13 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        if (!membersAdded[poolId][serviceId]) {
+        address registry = poolRegistry[poolId];
+        if (registry == address(0)) {
+            registry = address(target);
+        }
+        
+        bytes32 memberKey = keccak256(abi.encode(registry, serviceId));
+        if (!membersAdded[poolId][memberKey]) {
             return;
         }
         
@@ -151,25 +170,20 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        uint256[] memory currentMembers = target.getPoolMembers(poolId);
+        bytes32[] memory currentMembers = target.getPoolMembers(poolId);
         if (currentMembers.length <= 1) {
             return; // Cannot remove only member
         }
         
         // Get member shares before removal
-        (,, bool exists) = target.members(poolId, serviceId);
+        (,, uint256 memberShares, bool exists) = target.getMember(poolId, serviceId, registry);
         if (!exists) {
             return;
         }
         
-        (uint256 serviceIdReturned, uint256 memberShares,) = target.getMember(poolId, serviceId);
-        if (serviceIdReturned != serviceId) {
-            return;
-        }
-        
         vm.prank(operator);
-        try target.removeMember(poolId, serviceId) {
-            membersAdded[poolId][serviceId] = false;
+        try target.removeMember(poolId, serviceId, registry) {
+            membersAdded[poolId][memberKey] = false;
             expectedTotalShares[poolId] -= memberShares;
         } catch {}
     }
@@ -182,7 +196,13 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        if (!membersAdded[poolId][serviceId]) {
+        address registry = poolRegistry[poolId];
+        if (registry == address(0)) {
+            registry = address(target);
+        }
+        
+        bytes32 memberKey = keccak256(abi.encode(registry, serviceId));
+        if (!membersAdded[poolId][memberKey]) {
             return;
         }
         
@@ -191,13 +211,13 @@ contract PoolRegistryHandler is Test {
             return;
         }
         
-        (uint256 serviceIdReturned, uint256 oldShares,) = target.getMember(poolId, serviceId);
-        if (serviceIdReturned != serviceId) {
+        (,, uint256 oldShares, bool exists) = target.getMember(poolId, serviceId, registry);
+        if (!exists) {
             return;
         }
         
         vm.prank(operator);
-        try target.setShares(poolId, serviceId, newShares) {
+        try target.setShares(poolId, serviceId, registry, newShares) {
             expectedTotalShares[poolId] = expectedTotalShares[poolId] - oldShares + newShares;
         } catch {}
     }
@@ -242,19 +262,21 @@ contract PoolRegistryInvariantTest is StdInvariant, Test {
     function invariant_TotalSharesMatchesMemberShares() public {
         uint256 poolCount = handler.poolIdsLength();
         for (uint256 i = 0; i < poolCount; i++) {
-            uint256 poolId = handler.poolIds(i);
+            uint256 poolId = handler.getPoolId(i);
             
             if (!handler.poolsCreated(poolId)) {
                 continue;
             }
             
-            (,,,, uint256 totalShares,,,,,,) = target.getPool(poolId);
-            uint256[] memory memberIds = target.getPoolMembers(poolId);
+            (,,, uint256 totalShares,,,,,) = target.getPool(poolId);
+            bytes32[] memory memberKeys = target.getPoolMembers(poolId);
             
             uint256 calculatedShares = 0;
-            for (uint256 j = 0; j < memberIds.length; j++) {
-                (, uint256 shares,) = target.getMember(poolId, memberIds[j]);
-                calculatedShares += shares;
+            for (uint256 j = 0; j < memberKeys.length; j++) {
+                (,, uint256 shares, bool exists) = target.getMemberByKey(poolId, memberKeys[j]);
+                if (exists) {
+                    calculatedShares += shares;
+                }
             }
             
             assertEq(totalShares, calculatedShares, "Total shares mismatch");
@@ -271,7 +293,7 @@ contract PoolRegistryInvariantTest is StdInvariant, Test {
         // Full monotonicity check requires tracking previous expiry values
         uint256 poolCount = handler.poolIdsLength();
         for (uint256 i = 0; i < poolCount; i++) {
-            uint256 poolId = handler.poolIds(i);
+            uint256 poolId = handler.getPoolId(i);
             if (!handler.poolsCreated(poolId)) {
                 continue;
             }

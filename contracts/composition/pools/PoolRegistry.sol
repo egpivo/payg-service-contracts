@@ -571,6 +571,13 @@ contract PoolRegistry is PayAsYouGoBase {
         
         // Split net revenue among members
         bytes32[] memory memberKeys = poolMembers[_poolId];
+        
+        // Defensive guard: ensure pool has at least one member
+        // This protects against edge cases (migration, admin functions, emergency operations, or forks missing removeMember restrictions)
+        if (memberKeys.length == 0) {
+            revert PoolMustContainAtLeastOneMember();
+        }
+        
         uint256 memberCount = memberKeys.length;
         
         // Build array of shares for SplitLib
