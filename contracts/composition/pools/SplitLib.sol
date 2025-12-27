@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /**
  * @title SplitLib
  * @dev Library for calculating revenue splits based on member shares
  * 
  * This library handles weighted revenue distribution with deterministic remainder handling.
  * Remainder is allocated to the first member (deterministic tie-breaker).
+ * 
+ * Uses Math.mulDiv to prevent overflow when netAmount * memberShares[i] exceeds uint256 max.
  */
 library SplitLib {
     
@@ -40,11 +44,12 @@ library SplitLib {
         payouts = new uint256[](memberCount);
         
         // Calculate each member's payout based on their share
+        // Use Math.mulDiv to prevent overflow when netAmount * memberShares[i] > uint256 max
         uint256 distributedAmount = 0;
         for (uint256 i = 0; i < memberCount; i++) {
             // Calculate: payout = (netAmount * memberShares[i]) / totalShares
-            // This handles rounding by truncating
-            payouts[i] = (netAmount * memberShares[i]) / totalShares;
+            // Math.mulDiv handles overflow and rounding properly
+            payouts[i] = Math.mulDiv(netAmount, memberShares[i], totalShares);
             distributedAmount += payouts[i];
         }
         

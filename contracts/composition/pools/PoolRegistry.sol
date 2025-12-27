@@ -61,6 +61,7 @@ contract PoolRegistry is PayAsYouGoBase {
     error DuplicateMemberInPool(uint256 serviceId, address registry);
     error ServiceDoesNotExistInRegistry(uint256 serviceId, address registry);
     error InvalidShare(uint256 share);
+    error LengthMismatch(uint256 serviceIds, uint256 registries, uint256 shares);
     error OnlyPoolOperatorCanCall(uint256 poolId, address caller);
     error PoolIsPaused(uint256 poolId);
     error MemberDoesNotExist(uint256 poolId, uint256 serviceId, address registry);
@@ -185,7 +186,7 @@ contract PoolRegistry is PayAsYouGoBase {
             revert TooManyMembersInPool(_serviceIds.length, MAX_MEMBERS_PER_POOL);
         }
         if (_serviceIds.length != _shares.length || _serviceIds.length != _registries.length) {
-            revert InvalidShare(0); // Use InvalidShare to indicate length mismatch
+            revert LengthMismatch(_serviceIds.length, _registries.length, _shares.length);
         }
         
         // Prevent duplicate members (same registry + serviceId combination)
