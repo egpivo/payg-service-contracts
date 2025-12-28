@@ -170,7 +170,7 @@ contract PoolRegistryCrossRegistryTest is Test {
         assertFalse(existsA);
         
         // Total shares should be 1 (only registryB member remains)
-        (,,,, uint256 totalShares,,,,) = poolRegistry.getPool(poolId);
+        (,,, uint256 totalShares,,,,,) = poolRegistry.getPool(poolId);
         assertEq(totalShares, 1);
         
         // Purchase should only pay registryB provider
@@ -228,7 +228,7 @@ contract PoolRegistryCrossRegistryTest is Test {
         assertEq(sharesB, 1);
         
         // Total shares should be 4 (3 + 1)
-        (,,,, uint256 totalShares,,,,) = poolRegistry.getPool(poolId);
+        (,,, uint256 totalShares,,,,,) = poolRegistry.getPool(poolId);
         assertEq(totalShares, 4);
         
         // Purchase: registryA should get 75% (3/4), registryB should get 25% (1/4)
@@ -270,9 +270,6 @@ contract PoolRegistryCrossRegistryTest is Test {
         );
         
         // Test MemberRemoved event includes memberKey and registry
-        bytes32 memberKeyA = keccak256(abi.encode(address(registryA), serviceId1));
-        
-        // Verify memberKey computation matches what will be in event
         // The event now includes memberKey as indexed parameter for easier off-chain indexing
         vm.recordLogs();
         vm.prank(operator);
