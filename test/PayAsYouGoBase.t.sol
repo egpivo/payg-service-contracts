@@ -164,14 +164,14 @@ contract PayAsYouGoBaseTest is Test {
         payAsYouGoBase.useService{value: excessPayment}(SERVICE_ID);
 
         // Usage count should increment by 1, regardless of payment amount
-        (,,, uint256 usageCount) = payAsYouGoBase.getService(SERVICE_ID);
+        (,,, uint256 usageCount) = payAsYouGoBase.getServiceDetails(SERVICE_ID);
         assertEq(usageCount, 1);
 
         // Second use
         vm.prank(user2);
         payAsYouGoBase.useService{value: excessPayment}(SERVICE_ID);
 
-        (,,, usageCount) = payAsYouGoBase.getService(SERVICE_ID);
+        (,,, usageCount) = payAsYouGoBase.getServiceDetails(SERVICE_ID);
         assertEq(usageCount, 2);
     }
 }

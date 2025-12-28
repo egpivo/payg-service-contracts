@@ -106,7 +106,7 @@ contract ArticleBaseFuzzTest is Test {
         (,,,,,,, uint256 readCount) = articlePayPerRead.getArticle(articleId);
         assertEq(readCount, 1, "Read count should be 1");
         
-        (,,, uint256 usageCount) = articlePayPerRead.getService(articleId);
+        (,,, uint256 usageCount) = articlePayPerRead.getServiceDetails(articleId);
         assertEq(usageCount, 1, "Usage count should be 1");
     }
     
@@ -203,7 +203,7 @@ contract ArticleBaseFuzzTest is Test {
         (,,,,,,, uint256 readCount) = articlePayPerRead.getArticle(articleId);
         assertEq(readCount, numReads, "Read count should match number of reads");
         
-        (,,, uint256 usageCount) = articlePayPerRead.getService(articleId);
+        (,,, uint256 usageCount) = articlePayPerRead.getServiceDetails(articleId);
         assertEq(usageCount, numReads, "Usage count should match number of reads");
     }
     
@@ -218,7 +218,7 @@ contract ArticleBaseFuzzTest is Test {
         vm.prank(publisher);
         articlePayPerRead.publishArticle(articleId, price, title, contentHash);
         
-        (uint256 svcId, uint256 svcPrice, address svcProvider, uint256 svcUsage) = articlePayPerRead.getService(articleId);
+        (uint256 svcId, uint256 svcPrice, address svcProvider, uint256 svcUsage) = articlePayPerRead.getServiceDetails(articleId);
         (uint256 artId, , , , , uint256 artPrice, address artProvider, uint256 artReadCount) = articlePayPerRead.getArticle(articleId);
         
         assertEq(svcId, artId, "Service ID should match article ID");
