@@ -111,9 +111,11 @@ contract PoolRegistry is PayAsYouGoBase {
     event PoolCreated(uint256 indexed poolId, address indexed operator, uint256 memberCount, uint256 price);
     event PoolPaused(uint256 indexed poolId, address indexed operator);
     event PoolUnpaused(uint256 indexed poolId, address indexed operator);
-    event MemberAdded(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry, uint256 shares);
-    event MemberRemoved(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry);
-    event MemberSharesUpdated(uint256 indexed poolId, uint256 indexed serviceId, address indexed registry, uint256 oldShares, uint256 newShares);
+    // Events include memberKey for easier off-chain indexing (no need to compute keccak256)
+    // Note: Solidity limits to 3 indexed params, so we prioritize: poolId, serviceId, memberKey
+    event MemberAdded(uint256 indexed poolId, uint256 indexed serviceId, bytes32 indexed memberKey, address registry, uint256 shares);
+    event MemberRemoved(uint256 indexed poolId, uint256 indexed serviceId, bytes32 indexed memberKey, address registry);
+    event MemberSharesUpdated(uint256 indexed poolId, uint256 indexed serviceId, bytes32 indexed memberKey, address registry, uint256 oldShares, uint256 newShares);
     event PoolPurchased(uint256 indexed poolId, address indexed buyer, uint256 required, uint256 expiry, address indexed affiliate);
     
     /**
@@ -334,7 +336,7 @@ contract PoolRegistry is PayAsYouGoBase {
         
         pools[_poolId].totalShares += _shares;
         
-        emit MemberAdded(_poolId, _serviceId, _registry, _shares);
+        emit MemberAdded(_poolId, _serviceId, memberKey, _registry, _shares);
     }
     
     /**
@@ -376,7 +378,7 @@ contract PoolRegistry is PayAsYouGoBase {
             }
         }
         
-        emit MemberRemoved(_poolId, _serviceId, _registry);
+        emit MemberRemoved(_poolId, _serviceId, memberKey, _registry);
     }
     
     /**
@@ -408,7 +410,7 @@ contract PoolRegistry is PayAsYouGoBase {
         pools[_poolId].totalShares = pools[_poolId].totalShares - oldShares + _newShares;
         member.shares = _newShares;
         
-        emit MemberSharesUpdated(_poolId, _serviceId, _registry, oldShares, _newShares);
+        emit MemberSharesUpdated(_poolId, _serviceId, memberKey, _registry, oldShares, _newShares);
     }
     
     /**

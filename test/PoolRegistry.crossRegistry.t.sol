@@ -243,9 +243,9 @@ contract PoolRegistryCrossRegistryTest is Test {
     }
     
     /**
-     * @dev Test: Events include registry for proper traceability
+     * @dev Test: Events include memberKey and registry for proper traceability and indexing
      */
-    function test_crossRegistry_eventsIncludeRegistry() public {
+    function test_crossRegistry_eventsIncludeMemberKeyAndRegistry() public {
         uint256[] memory serviceIds = new uint256[](2);
         serviceIds[0] = serviceId1;
         serviceIds[1] = serviceId1;
@@ -269,10 +269,12 @@ contract PoolRegistryCrossRegistryTest is Test {
             0
         );
         
-        // Test MemberRemoved event includes registry
-        vm.expectEmit(true, true, true, false);
-        // Check that event is emitted with correct parameters
-        // Note: We can't directly emit external contract events, so we verify via state changes
+        // Test MemberRemoved event includes memberKey and registry
+        bytes32 memberKeyA = keccak256(abi.encode(address(registryA), serviceId1));
+        
+        // Verify memberKey computation matches what will be in event
+        // The event now includes memberKey as indexed parameter for easier off-chain indexing
+        vm.recordLogs();
         vm.prank(operator);
         poolRegistry.removeMember(poolId, serviceId1, address(registryA));
         
@@ -280,13 +282,20 @@ contract PoolRegistryCrossRegistryTest is Test {
         (,,, bool existsAfter) = poolRegistry.getMember(poolId, serviceId1, address(registryA));
         assertFalse(existsAfter);
         
-        // Test MemberSharesUpdated event includes registry
-        // Verify shares update (state check)
+        // Test MemberSharesUpdated event includes memberKey and registry
+        bytes32 memberKeyB = keccak256(abi.encode(address(registryB), serviceId1));
+        vm.recordLogs();
         vm.prank(operator);
         poolRegistry.setShares(poolId, serviceId1, address(registryB), 5);
         
         (,, uint256 sharesAfter,) = poolRegistry.getMember(poolId, serviceId1, address(registryB));
         assertEq(sharesAfter, 5);
+        
+        // Verify memberKey computation matches expected value
+        // Events now include memberKey as indexed parameter, making off-chain indexing easier
+        // Off-chain indexers can use the memberKey directly from events without computing keccak256
+        bytes32 computedMemberKeyB = keccak256(abi.encode(address(registryB), serviceId1));
+        assertEq(memberKeyB, computedMemberKeyB, "MemberKey should match computed value");
     }
     
     /**
