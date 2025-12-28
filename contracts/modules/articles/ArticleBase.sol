@@ -153,7 +153,7 @@ abstract contract ArticleBase is PayAsYouGoBase, IArticleRegistry {
         uint256 readCount
     ) {
         Article memory article = articles[_articleId];
-        (, uint256 servicePrice, address serviceProvider, uint256 usage) = getService(_articleId);
+        (, uint256 servicePrice, address serviceProvider, uint256 usage) = getServiceDetails(_articleId);
         
         return (
             article.articleId,

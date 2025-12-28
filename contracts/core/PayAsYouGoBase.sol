@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IServiceRegistry} from "../interfaces/IServiceRegistry.sol";
 
 /**
  * @title PayAsYouGoBase
@@ -16,7 +17,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * 2. User pays once (pay-per-use) → usageCount +1
  * 3. Provider withdraws earnings
  */
-contract PayAsYouGoBase is Ownable, ReentrancyGuard {
+contract PayAsYouGoBase is Ownable, ReentrancyGuard, IServiceRegistry {
     
     // Custom Errors
     error ServiceDoesNotExist(uint256 serviceId);
@@ -205,14 +206,14 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Get service details
+     * @dev Get service details (internal use - full details)
      * @param _serviceId The ID of the service
      * @return id Service ID
      * @return price Service price
      * @return provider Service provider address
      * @return usageCount Number of times service was used
      */
-    function getService(uint256 _serviceId) public view serviceExists(_serviceId) returns (
+    function getServiceDetails(uint256 _serviceId) public view serviceExists(_serviceId) returns (
         uint256 id,
         uint256 price,
         address provider,
@@ -220,5 +221,23 @@ contract PayAsYouGoBase is Ownable, ReentrancyGuard {
     ) {
         Service memory service = services[_serviceId];
         return (service.id, service.price, service.provider, service.usageCount);
+    }
+    
+    /**
+     * @dev Get minimal service information (IServiceRegistry interface)
+     * @param _serviceId The ID of the service
+     * @return price Service price
+     * @return provider Service provider address
+     * @return exists Whether the service exists
+     * @notice This method implements IServiceRegistry interface for PoolRegistry compatibility
+     *         Returns minimal data needed by Pool Protocol
+     */
+    function getService(uint256 _serviceId) external view override returns (
+        uint256 price,
+        address provider,
+        bool exists
+    ) {
+        Service memory service = services[_serviceId];
+        return (service.price, service.provider, service.exists);
     }
 }
