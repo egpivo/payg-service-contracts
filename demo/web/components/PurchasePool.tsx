@@ -46,10 +46,10 @@ export function PurchasePool() {
 
   return (
     <div>
-      <div>
+      <div style={{ marginBottom: '1rem' }}>
         <h2 style={{ margin: 0 }}>Step 2 — Buy the Product</h2>
-        <p style={{ margin: '0.25rem 0 1rem 0', color: '#666', fontSize: '0.9rem' }}>
-          The user pays once. Settlement happens automatically.
+        <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.95rem', lineHeight: '1.5' }}>
+          One payment, atomic settlement.
         </p>
       </div>
       <form onSubmit={handleSubmit}>

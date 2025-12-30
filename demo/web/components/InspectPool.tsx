@@ -68,10 +68,10 @@ export function InspectPool() {
 
   return (
     <div>
-      <div>
+      <div style={{ marginBottom: '1rem' }}>
         <h2 style={{ margin: 0 }}>Step 3 — Observe the System</h2>
-        <p style={{ margin: '0.25rem 0 1rem 0', color: '#666', fontSize: '0.9rem' }}>
-          View product details, revenue splits, and user access.
+        <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.95rem', lineHeight: '1.5' }}>
+          Access status and provider earnings.
         </p>
       </div>
       
@@ -134,6 +134,9 @@ export function InspectPool() {
           {poolMembers && poolMembers[0] && poolMembers[0].length > 0 && poolData[3] && (
             <div style={{ marginTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>👥 Providers & Revenue Split</h3>
+              <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#666', fontWeight: '500' }}>
+                Revenue Split (net)
+              </div>
               <div style={{ marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
                 {poolData[4] && (
                   <>

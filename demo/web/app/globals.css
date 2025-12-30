@@ -144,14 +144,10 @@ a {
 .flow-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   border-radius: 8px;
   margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  text-align: center;
 }
 
 .flow-step {

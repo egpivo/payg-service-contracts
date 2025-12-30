@@ -69,13 +69,12 @@ export function CreatePool() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Step 1 — Define the Product</h2>
-          <p style={{ margin: '0.25rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
-            Define what the user is buying and who gets paid.
-          </p>
-        </div>
+      <div style={{ marginBottom: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Step 1 — Define the Product</h2>
+        <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.95rem', lineHeight: '1.5' }}>
+          What users buy, who gets paid, and how revenue is split.
+        </p>
+      </div>
         <button
           type="button"
           onClick={loadExample}
