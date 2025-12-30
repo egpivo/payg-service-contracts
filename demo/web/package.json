@@ -1,0 +1,33 @@
+{
+  "name": "payg-pool-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal Web UI demo for PAYG Pool Protocol",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "wagmi": "^2.4.12",
+    "viem": "^2.0.5",
+    "@tanstack/react-query": "^5.56.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.15"
+  },
+  "overrides": {
+    "glob": "^10.4.6"
+  }
+}
+
