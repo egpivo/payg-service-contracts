@@ -75,6 +75,7 @@ export function CreatePool() {
           What users buy, who gets paid, and how revenue is split.
         </p>
       </div>
+      <div style={{ marginBottom: '1.5rem' }}>
         <button
           type="button"
           onClick={loadExample}

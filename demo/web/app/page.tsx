@@ -11,31 +11,34 @@ export default function Home() {
 
   return (
     <div className="container">
-      <div className="header">
-        <h1>PAYG Pool Protocol Demo</h1>
-        <p>Create a product → Buy once → Access services → Providers get paid</p>
-      </div>
-
       {/* Product Flow Header */}
       <div className="flow-header">
-        <div className="flow-step">
-          <div className="flow-icon">🧱</div>
-          <div className="flow-label">Create Pool</div>
-        </div>
-        <div className="flow-arrow">→</div>
-        <div className="flow-step">
-          <div className="flow-icon">💳</div>
-          <div className="flow-label">Purchase</div>
-        </div>
-        <div className="flow-arrow">→</div>
-        <div className="flow-step">
-          <div className="flow-icon">🔓</div>
-          <div className="flow-label">Access</div>
-        </div>
-        <div className="flow-arrow">→</div>
-        <div className="flow-step">
-          <div className="flow-icon">💰</div>
-          <div className="flow-label">Settlement</div>
+        <h1 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem', fontWeight: '600' }}>
+          Composable Product Demo
+        </h1>
+        <p style={{ margin: '0 0 2rem 0', fontSize: '1.1rem', opacity: '0.95' }}>
+          Define a product → Buy once → Access services → Providers get paid
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div className="flow-step">
+            <div className="flow-icon">🧱</div>
+            <div className="flow-label">Define Pool</div>
+          </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-step">
+            <div className="flow-icon">💳</div>
+            <div className="flow-label">Purchase</div>
+          </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-step">
+            <div className="flow-icon">🔓</div>
+            <div className="flow-label">Access</div>
+          </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-step">
+            <div className="flow-icon">💰</div>
+            <div className="flow-label">Settlement</div>
+          </div>
         </div>
       </div>
 
