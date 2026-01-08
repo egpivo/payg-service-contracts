@@ -684,6 +684,13 @@ export default function App() {
 
   // Track purchase transaction
   useEffect(() => {
+    // CRITICAL: Never start polling if purchase was completed
+    if (purchaseCompletedRef.current) {
+      purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      purchasePollingTimeouts.current = [];
+      return;
+    }
+    
     // Don't start polling if we're already in result state
     // This check must be first to prevent any polling from starting
     if (demoState === 'result' || demoState === 'purchased') {
