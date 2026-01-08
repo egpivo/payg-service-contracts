@@ -721,8 +721,8 @@ export default function App() {
       let foundReceipt = false; // Track if receipt was found to stop polling
       
       const startChecking = async () => {
-        // Stop if we're already in result state (transaction was confirmed via other means)
-        if (demoState === 'result' || foundReceipt) {
+        // Stop if receipt was already found
+        if (foundReceipt) {
           return;
         }
         
@@ -735,20 +735,18 @@ export default function App() {
           return; // Stop polling
         }
         
-        if (!found && checkCount < maxChecks) {
+        if (!found && checkCount < maxChecks && !foundReceipt) {
           checkCount++;
-          // Only schedule next check if we haven't found receipt and state hasn't changed
-          if (demoState !== 'result' && !foundReceipt) {
-            const timeoutId = setTimeout(startChecking, 2000);
-            purchasePollingTimeouts.current.push(timeoutId);
-          }
+          // Only schedule next check if we haven't found receipt
+          const timeoutId = setTimeout(startChecking, 2000);
+          purchasePollingTimeouts.current.push(timeoutId);
         } else if (checkCount >= maxChecks && !found) {
           addLog('warning', 'Purchase transaction still pending after 60 seconds.');
         }
       };
       
       const initialTimeoutId = setTimeout(() => {
-        if (demoState !== 'result' && !foundReceipt) {
+        if (!foundReceipt) {
           startChecking();
         }
       }, 1000);
