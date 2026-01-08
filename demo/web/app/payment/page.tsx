@@ -1114,6 +1114,12 @@ export default function App() {
   }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain]);
 
   const handleReset = () => {
+    // Clear purchase completed flag when user explicitly resets
+    purchaseCompletedRef.current = false;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('purchaseCompleted');
+      sessionStorage.removeItem('demoState');
+    }
     setDemoState('intro');
     setActivities([]);
     setEventLogs([]);
