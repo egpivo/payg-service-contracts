@@ -970,13 +970,16 @@ export default function App() {
   }, [demoState]);
 
   useEffect(() => {
-    if (isPurchaseConfirmed && purchaseHash && demoState !== 'result') {
+    if (isPurchaseConfirmed && purchaseHash && demoState !== 'result' && demoState !== 'purchased') {
       // Mark this purchase hash as confirmed
       purchaseReceiptFound.current.add(purchaseHash);
       // Clear all purchase polling timeouts when confirmed via wagmi
       purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
       purchasePollingTimeouts.current = [];
-      setDemoState('result');
+      // Only set state if not already in result state
+      if (demoState !== 'result') {
+        setDemoState('result');
+      }
     }
   }, [isPurchaseConfirmed, purchaseHash, demoState]);
 
