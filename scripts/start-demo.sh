@@ -135,7 +135,18 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}3. Installing Web UI dependencies (if needed)...${NC}"
+echo -e "${BLUE}3. Cleaning Next.js cache...${NC}"
+cd demo/web
+if [ -d ".next" ]; then
+    rm -rf .next
+    echo -e "   ${GREEN}✓ Next.js cache cleared${NC}"
+else
+    echo "   No cache to clear"
+fi
+cd ../..
+
+echo ""
+echo -e "${BLUE}4. Installing Web UI dependencies (if needed)...${NC}"
 cd demo/web
 if [ ! -d "node_modules" ]; then
     npm install
@@ -156,7 +167,7 @@ fi
 CONTRACT_ADDR=$(cat demo/contracts.json 2>/dev/null | grep -o '"PoolRegistry": "[^"]*"' | cut -d'"' -f4 || echo "Not deployed")
 echo "   • Contract: $CONTRACT_ADDR"
 echo ""
-echo -e "${BLUE}4. Starting Next.js dev server...${NC}"
+echo -e "${BLUE}5. Starting Next.js dev server...${NC}"
 echo ""
 echo "   🌐 Web UI: http://localhost:3000"
 echo "   📝 Press Ctrl+C to stop all services (Anvil + Next.js)"
