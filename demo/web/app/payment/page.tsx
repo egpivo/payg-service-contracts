@@ -80,6 +80,8 @@ export default function App() {
   const loggedConfirmingTx = useRef<Set<string>>(new Set());
   const loggedEventTx = useRef<Set<string>>(new Set());
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
+  const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
@@ -304,6 +306,10 @@ export default function App() {
 
   // Track create transaction with better error handling
   useEffect(() => {
+    // Clear any existing polling timeouts when effect runs or dependencies change
+    createPollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+    createPollingTimeouts.current = [];
+
     if (createHash && !loggedConfirmingTx.current.has(createHash)) {
       loggedConfirmingTx.current.add(createHash);
       addActivity({
@@ -376,7 +382,8 @@ export default function App() {
         const found = await checkReceipt();
         if (!found && checkCount < maxChecks) {
           checkCount++;
-          setTimeout(startChecking, 2000);
+          const timeoutId = setTimeout(startChecking, 2000);
+          createPollingTimeouts.current.push(timeoutId);
         } else if (checkCount >= maxChecks && !found) {
           addLog('warning', 'Transaction still pending after 60 seconds. Please check network and try again.');
           addLog('info', 'If transaction was sent to wrong network, it will never confirm. Please refresh and try again.');
@@ -384,7 +391,14 @@ export default function App() {
       };
       
       // Start checking after a short delay to allow transaction to be mined
-      setTimeout(() => startChecking(), 1000);
+      const initialTimeoutId = setTimeout(() => startChecking(), 1000);
+      createPollingTimeouts.current.push(initialTimeoutId);
+
+      // Cleanup function to clear all pending timeouts
+      return () => {
+        createPollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+        createPollingTimeouts.current = [];
+      };
     }
   }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity]);
 
@@ -532,6 +546,10 @@ export default function App() {
 
   // Track purchase transaction
   useEffect(() => {
+    // Clear any existing polling timeouts when effect runs or dependencies change
+    purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+    purchasePollingTimeouts.current = [];
+
     if (purchaseHash && !loggedConfirmingTx.current.has(purchaseHash)) {
       loggedConfirmingTx.current.add(purchaseHash);
       addActivity({
@@ -593,13 +611,21 @@ export default function App() {
         const found = await checkReceipt();
         if (!found && checkCount < maxChecks) {
           checkCount++;
-          setTimeout(startChecking, 2000);
+          const timeoutId = setTimeout(startChecking, 2000);
+          purchasePollingTimeouts.current.push(timeoutId);
         } else if (checkCount >= maxChecks && !found) {
           addLog('warning', 'Purchase transaction still pending after 60 seconds.');
         }
       };
       
-      setTimeout(() => startChecking(), 1000);
+      const initialTimeoutId = setTimeout(() => startChecking(), 1000);
+      purchasePollingTimeouts.current.push(initialTimeoutId);
+
+      // Cleanup function to clear all pending timeouts
+      return () => {
+        purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+        purchasePollingTimeouts.current = [];
+      };
     }
   }, [purchaseHash, addActivity, addLog, activities, updateActivity, setDemoState]);
 
