@@ -196,6 +196,35 @@ export default function App() {
   });
   const poolData = poolQuery.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
   const refetchPool = poolQuery.refetch;
+  
+  // Check if contract code exists at the address
+  const [contractCodeExists, setContractCodeExists] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    if (mounted && isConnected && CONTRACT_ADDRESSES.PoolRegistry) {
+      const checkContractCode = async () => {
+        try {
+          const response = await fetch('http://localhost:8545', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'eth_getCode',
+              params: [CONTRACT_ADDRESSES.PoolRegistry, 'latest'],
+              id: 1,
+            }),
+          });
+          const data = await response.json();
+          const code = data.result || '';
+          setContractCodeExists(code && code !== '0x' && code.length > 2);
+        } catch (error) {
+          console.error('Error checking contract code:', error);
+          setContractCodeExists(false);
+        }
+      };
+      checkContractCode();
+    }
+  }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry]);
 
   // Query earnings and access for settlement display
   const { data: userEarnings } = useReadContract({
@@ -979,6 +1008,35 @@ export default function App() {
       <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
         <div className="text-center">
           <div className="text-lg text-[#666666]">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show contract deployment error if contract doesn't exist
+  if (mounted && isConnected && contractCodeExists === false) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] py-8 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 mb-6">
+            <h2 className="text-2xl font-bold text-red-800 mb-4">⚠️ Contract Not Deployed</h2>
+            <p className="text-red-700 mb-4">
+              The PoolRegistry contract is not deployed at address <code className="bg-red-100 px-2 py-1 rounded">{CONTRACT_ADDRESSES.PoolRegistry}</code>
+            </p>
+            <div className="bg-white rounded-lg p-6 mb-4">
+              <h3 className="font-semibold text-lg mb-3">To fix this, please deploy the contract:</h3>
+              <ol className="list-decimal list-inside space-y-2 text-sm">
+                <li>Make sure Anvil is running: <code className="bg-gray-100 px-2 py-1 rounded">make anvil-free</code></li>
+                <li>Deploy the contract: <code className="bg-gray-100 px-2 py-1 rounded">make deploy-local</code></li>
+                <li>Refresh this page after deployment</li>
+              </ol>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> The deployment script will automatically update <code>demo/contracts.json</code> with the correct address.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
