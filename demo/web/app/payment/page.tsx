@@ -669,8 +669,9 @@ export default function App() {
       resetCreate();
       addLog('info', 'Transaction cancelled. Please reject the transaction in MetaMask if the popup is still open.');
     }
-    setDemoState('intro');
-  }, [isCreating, isCreateConfirming, resetCreate, addLog]);
+    // Navigate back to home page
+    router.push('/');
+  }, [isCreating, isCreateConfirming, resetCreate, addLog, router]);
 
   const handleBackFromPurchase = useCallback(() => {
     if (isPurchasing || isPurchaseConfirming) {
@@ -834,6 +835,14 @@ export default function App() {
     setDemoState('intro');
     setActivities([]);
     setEventLogs([]);
+    // Check if user came from select page
+    const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
+    // Navigate back: if came from select page, go back to select; otherwise go to home
+    if (hasSelectedConfig) {
+      router.push('/select');
+    } else {
+      router.push('/');
+    }
   };
 
   // Calculate settlement breakdown
