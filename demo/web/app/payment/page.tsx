@@ -662,6 +662,16 @@ export default function App() {
 
   // Track purchase transaction
   useEffect(() => {
+    // Don't start polling if we're already in result state
+    if (demoState === 'result' || demoState === 'purchased') {
+      return;
+    }
+
+    // Don't start polling if this purchase hash was already confirmed
+    if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
+      return;
+    }
+
     // Clear any existing polling timeouts when effect runs or dependencies change
     purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
     purchasePollingTimeouts.current = [];
@@ -758,7 +768,7 @@ export default function App() {
         purchasePollingTimeouts.current = [];
       };
     }
-  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState, demoState]);
+  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState]);
 
   useEffect(() => {
     if (purchaseHash && isPurchaseConfirming && !loggedConfirmingTx.current.has(purchaseHash)) {
