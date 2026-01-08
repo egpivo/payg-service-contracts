@@ -10,6 +10,13 @@ export function InspectPool() {
   const [poolId, setPoolId] = useState('');
   const [userAddress, setUserAddress] = useState(address || '');
 
+  // Map service IDs to names (for demo)
+  const serviceNames: Record<string, string> = {
+    '101': 'Rare Art Collection #101',
+    '201': 'Luxury Hotel Space #201',
+    '202': 'Premium Security #202',
+  };
+
   const { data: poolData } = useReadContract({
     address: CONTRACT_ADDRESSES.PoolRegistry,
     abi: PoolRegistryABI,
@@ -42,6 +49,8 @@ export function InspectPool() {
     query: { enabled: !!poolId },
   }) as { data: [bigint[], string[], bigint[]] | undefined };
 
+  // Get provider addresses for each member (would need additional calls in production)
+  // For demo, we'll show registry addresses
 
   const formatAccessStatus = (expiry: bigint | undefined) => {
     if (!expiry) return { status: 'No access', active: false, timeLeft: null };
@@ -66,12 +75,25 @@ export function InspectPool() {
 
   const accessStatus = formatAccessStatus(accessExpiry as bigint | undefined);
 
+  // Calculate protocol invariants for display
+  const calculateInvariants = () => {
+    if (!poolData || !poolMembers || !poolMembers[0]) return null;
+    
+    const totalShares = poolData[3];
+    const calculatedShares = poolMembers[2]?.reduce((sum, share) => sum + share, 0n) || 0n;
+    const sharesMatch = totalShares === calculatedShares;
+    
+    return { totalShares, calculatedShares, sharesMatch };
+  };
+
+  const invariants = calculateInvariants();
+
   return (
     <div>
       <div style={{ marginBottom: '1rem' }}>
         <h2 style={{ margin: 0 }}>Step 3 — Observe the System</h2>
         <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.95rem', lineHeight: '1.5' }}>
-          Access status and provider earnings.
+          View product details, revenue splits, and user access.
         </p>
       </div>
       
@@ -97,6 +119,35 @@ export function InspectPool() {
 
       {poolData && (
         <>
+          {/* Protocol Invariants Display */}
+          {invariants && (
+            <div style={{ 
+              marginTop: '1.5rem', 
+              padding: '1rem', 
+              background: '#f0f9ff',
+              borderRadius: '6px',
+              borderLeft: '4px solid #0ea5e9'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🔒</span>
+                <strong style={{ fontSize: '0.95rem' }}>Protocol Invariants</strong>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#555' }}>
+                <div style={{ marginBottom: '0.25rem' }}>
+                  <strong>Total Shares:</strong> {String(invariants.totalShares)} 
+                  {invariants.sharesMatch ? (
+                    <span style={{ color: '#10b981', marginLeft: '0.5rem' }}>✅</span>
+                  ) : (
+                    <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>❌ Mismatch!</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>
+                  Protocol guarantee: totalShares always equals sum of member shares (verified by invariant tests).
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Product Info */}
           <div style={{ marginTop: '1.5rem' }}>
             <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>🧾 Product Info</h3>
@@ -127,6 +178,10 @@ export function InspectPool() {
                 <strong>Purchases:</strong>
                 <span>{String(poolData[8] || 0)}</span>
               </li>
+              <li>
+                <strong>Members:</strong>
+                <span>{String(poolData[2] || 0)}</span>
+              </li>
             </ul>
           </div>
 
@@ -134,6 +189,21 @@ export function InspectPool() {
           {poolMembers && poolMembers[0] && poolMembers[0].length > 0 && poolData[3] && (
             <div style={{ marginTop: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>👥 Providers & Revenue Split</h3>
+              
+              {/* Cross-Registry Indicator */}
+              {poolMembers[1] && new Set(poolMembers[1]).size > 1 && (
+                <div style={{ 
+                  marginBottom: '0.75rem', 
+                  padding: '0.5rem', 
+                  background: '#fef3c7',
+                  borderRadius: '4px',
+                  fontSize: '0.85rem',
+                  color: '#92400e'
+                }}>
+                  🌐 <strong>Cross-Registry Pool:</strong> This pool contains services from {new Set(poolMembers[1]).size} different registries!
+                </div>
+              )}
+
               <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#666', fontWeight: '500' }}>
                 Revenue Split (net)
               </div>
@@ -141,22 +211,39 @@ export function InspectPool() {
                 {poolData[4] && (
                   <>
                     <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                      Total net revenue (after {poolData[5] / 100}% operator fee):{' '}
+                      Total net revenue (after {Number(poolData[5] || 0) / 100}% operator fee):{' '}
                       <strong style={{ color: '#333' }}>
-                        {String((Number(poolData[4]) / 1e18) * (1 - (poolData[5] || 0) / 10000))} ETH
+                        {String((Number(poolData[4]) / 1e18) * (1 - (Number(poolData[5]) || 0) / 10000))} ETH
                       </strong>
                     </div>
                     {poolMembers[0].map((serviceId, index) => {
                       const shares = poolMembers[2]?.[index] || 0n;
                       const totalShares = poolData[3];
                       const percentage = totalShares > 0n ? Number((shares * 10000n) / totalShares) / 100 : 0;
-                      const netRevenue = (Number(poolData[4]) / 1e18) * (1 - (poolData[5] || 0) / 10000);
+                      const netRevenue = (Number(poolData[4]) / 1e18) * (1 - (Number(poolData[5]) || 0) / 10000);
                       const amount = netRevenue * percentage / 100;
+                      const registry = poolMembers[1]?.[index] || 'N/A';
+                      const isFirstMember = index === 0;
+                      const serviceIdStr = String(serviceId);
+                      const serviceName = serviceNames[serviceIdStr] || `Service #${serviceIdStr}`;
+                      
                       return (
                         <div key={index} style={{ marginBottom: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.9rem' }}>
                             <span>
-                              <strong>Service #{String(serviceId)}</strong>
+                              <strong>{serviceName}</strong>
+                              {isFirstMember && (
+                                <span style={{ 
+                                  marginLeft: '0.5rem', 
+                                  fontSize: '0.75rem', 
+                                  background: '#fef3c7',
+                                  padding: '0.1rem 0.3rem',
+                                  borderRadius: '3px',
+                                  color: '#92400e'
+                                }}>
+                                  (gets remainder)
+                                </span>
+                              )}
                               <span style={{ color: '#666', marginLeft: '0.5rem' }}>
                                 ({String(shares)} shares)
                               </span>
@@ -186,11 +273,31 @@ export function InspectPool() {
                             </div>
                           </div>
                           <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
-                            Registry: {String(poolMembers[1]?.[index] || 'N/A').slice(0, 10)}...
+                            Registry: {String(registry).slice(0, 10)}...{String(registry).slice(-8)}
+                            {poolMembers[1] && index > 0 && poolMembers[1][index] === poolMembers[1][0] && (
+                              <span style={{ marginLeft: '0.5rem', color: '#667eea', fontWeight: 'bold' }}>
+                                (same registry as first)
+                              </span>
+                            )}
+                            {poolMembers[1] && index > 0 && poolMembers[1][index] !== poolMembers[1][0] && (
+                              <span style={{ marginLeft: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>
+                                (different registry - cross-registry!)
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
                     })}
+                    <div style={{ 
+                      marginTop: '0.75rem', 
+                      paddingTop: '0.75rem', 
+                      borderTop: '1px solid #ddd',
+                      fontSize: '0.8rem',
+                      color: '#666',
+                      fontStyle: 'italic'
+                    }}>
+                      💡 <strong>Remainder handling:</strong> Any rounding remainder from the split calculation goes to the first provider (deterministic tie-breaker). This ensures 100% of net revenue is distributed.
+                    </div>
                   </>
                 )}
               </div>
@@ -232,6 +339,9 @@ export function InspectPool() {
               <span style={{ marginLeft: '0.5rem' }}>
                 {earnings ? `${String(Number(earnings) / 1e18)} ETH` : '0 ETH'}
               </span>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#666' }}>
+                💡 Earnings accumulate across all pools. Use <code style={{ fontSize: '0.75rem', background: '#f0f0f0', padding: '0.1rem 0.3rem' }}>withdraw()</code> to claim.
+              </div>
             </li>
           </ul>
         </div>
@@ -245,4 +355,3 @@ export function InspectPool() {
     </div>
   );
 }
-

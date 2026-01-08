@@ -70,9 +70,9 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
           break;
         case 'MemberAdded':
           const serviceNames: Record<string, string> = {
-            '101': 'Article',
-            '201': 'Venue',
-            '202': 'Security',
+            '101': 'Rare Art Collection',
+            '201': 'Luxury Hotel Space',
+            '202': 'Premium Security',
           };
           const serviceIdStr = String(event.args.serviceId);
           const serviceName = serviceNames[serviceIdStr] || `Service #${serviceIdStr}`;

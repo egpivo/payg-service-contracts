@@ -789,7 +789,7 @@ export default function App() {
               <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-12 mb-8 text-white text-center">
                 <div className="mb-4">
                   <span className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-medium mb-4">
-                    Demo: One product = content + venue + security
+                    Demo: Art collection + hotel space + security
                   </span>
                 </div>
                 <h1 className="text-[2.5rem] mb-4 font-bold">Private Gallery Access</h1>
@@ -799,11 +799,11 @@ export default function App() {
                 <div className="bg-white/15 backdrop-blur-sm rounded-lg p-6 max-w-3xl mx-auto">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
                     <div>
-                      <p className="opacity-75 text-[0.85rem]">Content</p>
+                      <p className="opacity-75 text-[0.85rem]">Art Collection</p>
                       <p className="font-semibold">= Service</p>
                     </div>
                     <div>
-                      <p className="opacity-75 text-[0.85rem]">Infrastructure</p>
+                      <p className="opacity-75 text-[0.85rem]">Hotel Space & Security</p>
                       <p className="font-semibold">= Services</p>
                     </div>
                     <div>
