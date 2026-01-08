@@ -609,18 +609,12 @@ export default function App() {
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
-      // Find activity using setActivities to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === createReceipt.transactionHash);
-        if (activity) {
-          updateActivity(activity.id, {
-            status: 'confirmed',
-            blockNumber: createReceipt.blockNumber,
-            gasUsed: createReceipt.gasUsed,
-          });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === createReceipt.transactionHash 
+          ? { ...act, status: 'confirmed' as ActivityStatus, blockNumber: createReceipt.blockNumber, gasUsed: createReceipt.gasUsed }
+          : act
+      ));
       // Parse events from receipt
       const events: { name: string; args: Record<string, any> }[] = [];
       if (createReceipt.logs) {
@@ -650,14 +644,12 @@ export default function App() {
 
   useEffect(() => {
     if (createHash && isCreateError) {
-      // Find activity using ref to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === createHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === createHash 
+          ? { ...act, status: 'failed' as ActivityStatus, error: 'Transaction failed' }
+          : act
+      ));
       addLog('error', 'createPool transaction failed', {
         txHash: createHash,
         status: 'reverted',
@@ -767,18 +759,12 @@ export default function App() {
     if (purchaseReceipt && !loggedEventTx.current.has(purchaseReceipt.transactionHash)) {
       loggedEventTx.current.add(purchaseReceipt.transactionHash);
       
-      // Find activity using setActivities to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === purchaseReceipt.transactionHash);
-        if (activity) {
-          updateActivity(activity.id, {
-            status: 'confirmed',
-            blockNumber: purchaseReceipt.blockNumber,
-            gasUsed: purchaseReceipt.gasUsed,
-          });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === purchaseReceipt.transactionHash 
+          ? { ...act, status: 'confirmed' as ActivityStatus, blockNumber: purchaseReceipt.blockNumber, gasUsed: purchaseReceipt.gasUsed }
+          : act
+      ));
       addLog('success', 'purchasePool transaction confirmed', {
         txHash: purchaseReceipt.transactionHash,
         status: 'confirmed',
@@ -814,14 +800,12 @@ export default function App() {
 
   useEffect(() => {
     if (purchaseHash && isPurchaseError) {
-      // Find activity using setActivities to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === purchaseHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === purchaseHash 
+          ? { ...act, status: 'failed' as ActivityStatus, error: 'Transaction failed' }
+          : act
+      ));
       addLog('error', 'purchasePool transaction failed', {
         txHash: purchaseHash,
         status: 'reverted',
