@@ -283,7 +283,8 @@ export default function App() {
     }
     
     // Don't run if purchase was confirmed (even if state hasn't updated yet)
-    if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
+    // Check if ANY purchase hash was confirmed (not just current one, in case purchaseHash was reset)
+    if (purchaseReceiptFound.current.size > 0) {
       return;
     }
     
@@ -686,7 +687,16 @@ export default function App() {
       return;
     }
 
-    // Don't start polling if this purchase hash was already confirmed
+    // Don't start polling if ANY purchase hash was already confirmed
+    // This prevents re-polling even if purchaseHash was reset to undefined
+    if (purchaseReceiptFound.current.size > 0) {
+      // Clear any existing polling timeouts if receipt was already found
+      purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      purchasePollingTimeouts.current = [];
+      return;
+    }
+
+    // Don't start polling if this specific purchase hash was already confirmed
     if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
       // Clear any existing polling timeouts if receipt was already found
       purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
