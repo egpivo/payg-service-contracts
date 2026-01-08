@@ -141,7 +141,7 @@ export default function SelectPage() {
       // Store config in sessionStorage and navigate to checkout
       sessionStorage.setItem('selectedConfig', JSON.stringify(config));
       sessionStorage.setItem('goToCheckout', 'true');
-      router.push('/');
+      router.push('/payment');
     }
   };
 
@@ -168,7 +168,7 @@ export default function SelectPage() {
               href="/"
               className="text-[#667eea] hover:text-[#5568d3] font-semibold text-sm"
             >
-              ← Back to Demo
+              ← Back to Home
             </Link>
           </div>
         </div>

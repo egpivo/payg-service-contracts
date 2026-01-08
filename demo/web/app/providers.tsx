@@ -8,7 +8,7 @@ import { useState } from 'react';
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 
-const config = createConfig({
+export const config = createConfig({
   chains: [localhost, sepolia, mainnet],
   connectors: [
     injected(),
@@ -16,14 +16,32 @@ const config = createConfig({
     // walletConnect({ projectId }), // Uncomment if you have WalletConnect project ID
   ],
   transports: {
-    [localhost.id]: http(),
+    [localhost.id]: http('http://localhost:8545'),
     [sepolia.id]: http(),
     [mainnet.id]: http(),
   },
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Reduce retries for failed queries (like ERC20 symbol/decimals on non-token contracts)
+        retry: 1,
+        // Don't refetch on window focus for local development
+        refetchOnWindowFocus: false,
+        // Faster updates for local development
+        staleTime: 1000,
+        // Disable automatic refetching interval
+        refetchInterval: false,
+      },
+      mutations: {
+        // For localhost, retry more aggressively
+        retry: 2,
+        retryDelay: 500,
+      },
+    },
+  }));
 
   return (
     <WagmiProvider config={config}>
@@ -33,4 +51,3 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </WagmiProvider>
   );
 }
-
