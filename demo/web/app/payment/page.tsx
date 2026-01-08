@@ -178,9 +178,17 @@ export default function App() {
     query: { 
       enabled: shouldRefetchPool,
       refetchInterval: (query) => {
-        // Only refetch if we're waiting for confirmation, max every 2 seconds
+        // Keep refetching if we're waiting for confirmation OR if pool was created but data not available yet
         if (isCreateConfirming || isPurchaseConfirming) {
           return 2000;
+        }
+        // Continue refetching after confirmation until pool data is available
+        // Check if pool data exists and matches the expected pool ID
+        if (isCreateConfirmed) {
+          const data = query.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
+          if (!data || data[0] !== BigInt(DEMO_POOL.poolId)) {
+            return 2000; // Keep refetching every 2 seconds until pool data is available
+          }
         }
         return false;
       },
@@ -439,21 +447,20 @@ export default function App() {
               },
             });
           } else {
-            // Pool not found yet, try again after a longer delay
-            addLog('info', 'Pool not found yet, will retry...');
-            setTimeout(async () => {
-              await refetchPool();
-            }, 2000);
+            // Pool not found yet, refetchInterval will continue polling
+            addLog('info', 'Pool not found yet, polling will continue...');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error refetching pool:', error);
-          addLog('warning', 'Error refetching pool state, will retry...');
-          // Retry once more
-          setTimeout(async () => {
-            await refetchPool();
-          }, 2000);
+          // If error is "PoolDoesNotExist", pool might not be created yet, keep trying
+          if (error?.message?.includes('PoolDoesNotExist') || error?.message?.includes('revert')) {
+            addLog('info', 'Pool not found yet (may still be processing), polling will continue...');
+          } else {
+            addLog('warning', 'Error refetching pool state, polling will continue...');
+          }
+          // refetchInterval will continue polling automatically
         }
-      }, 1000); // Increased delay to ensure block is processed
+      }, 1500); // Wait a bit longer to ensure block is fully processed
     }
   }, [isCreateConfirmed, createReceipt, refetchPool, addLog]);
 
