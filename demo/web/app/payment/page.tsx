@@ -412,7 +412,7 @@ export default function App() {
         createPollingTimeouts.current = [];
       };
     }
-  }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity, refetchPool]);
+  }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity]);
 
   // Refetch pool after create confirmed
   useEffect(() => {
