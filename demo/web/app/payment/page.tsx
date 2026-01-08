@@ -719,24 +719,23 @@ export default function App() {
       // Check immediately and then every 2 seconds
       let checkCount = 0;
       const maxChecks = 30;
-      let foundReceipt = false; // Track if receipt was found to stop polling
       
       const startChecking = async () => {
-        // Stop if receipt was already found
-        if (foundReceipt) {
+        // Stop if receipt was already found for this hash
+        if (purchaseReceiptFound.current.has(purchaseHash)) {
           return;
         }
         
         const found = await checkReceipt();
         if (found) {
-          foundReceipt = true;
+          purchaseReceiptFound.current.add(purchaseHash);
           // Clear all pending timeouts since we found the receipt
           purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
           purchasePollingTimeouts.current = [];
           return; // Stop polling
         }
         
-        if (!found && checkCount < maxChecks && !foundReceipt) {
+        if (!found && checkCount < maxChecks && !purchaseReceiptFound.current.has(purchaseHash)) {
           checkCount++;
           // Only schedule next check if we haven't found receipt
           const timeoutId = setTimeout(startChecking, 2000);
@@ -747,7 +746,7 @@ export default function App() {
       };
       
       const initialTimeoutId = setTimeout(() => {
-        if (!foundReceipt) {
+        if (!purchaseReceiptFound.current.has(purchaseHash)) {
           startChecking();
         }
       }, 1000);
