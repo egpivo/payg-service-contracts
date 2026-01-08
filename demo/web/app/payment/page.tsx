@@ -33,6 +33,15 @@ const SERVICE_NAMES: Record<string, string> = {
   '203': 'Presentation Services',
 };
 
+// Service price mapping (must match select page)
+const SERVICE_PRICES: Record<string, string> = {
+  '101': '0.5',
+  '102': '0.4',
+  '201': '0.33',
+  '202': '0.17',
+  '203': '0.2',
+};
+
 interface PoolMember {
   serviceId: string;
   registry: string;
@@ -95,12 +104,15 @@ export default function App() {
               name: SERVICE_NAMES[serviceId] || `Service #${serviceId}`,
             }));
 
-            const totalShares = members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
-            const basePrice = totalShares * 0.16; // Rough price calculation
+            // Calculate total price by summing actual service prices (must match select page)
+            const totalPrice = serviceIds.reduce((sum: number, serviceId: string) => {
+              const price = SERVICE_PRICES[serviceId] || '0';
+              return sum + parseFloat(price);
+            }, 0);
             
             setDEMO_POOL({
               poolId: '42',
-              price: basePrice.toFixed(2),
+              price: totalPrice.toFixed(2),
               duration: '604800', // 7 days
               operatorFeeBps: '200', // 2%
               members,
