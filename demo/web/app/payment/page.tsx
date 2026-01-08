@@ -721,7 +721,12 @@ export default function App() {
                 ? { ...act, status: 'confirmed' as ActivityStatus, blockNumber: BigInt(data.result.blockNumber || '0'), gasUsed: BigInt(data.result.gasUsed || '0') }
                 : act
             ));
-            // Update state to result - this will trigger the useEffect that sets demoState to 'result'
+            // Mark receipt as found first to prevent any polling from restarting
+            purchaseReceiptFound.current.add(purchaseHash);
+            // Clear all polling timeouts
+            purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+            purchasePollingTimeouts.current = [];
+            // Update state to result
             setDemoState('result');
             return true; // Found receipt
           }
