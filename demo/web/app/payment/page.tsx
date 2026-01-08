@@ -76,17 +76,6 @@ export default function App() {
   const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>('intro');
-  
-  // Debug: Track all state changes
-  useEffect(() => {
-    console.log(`[STATE] demoState changed to: ${demoState}`, {
-      purchaseCompleted: purchaseCompletedRef.current,
-      purchaseReceiptFoundSize: purchaseReceiptFound.current.size,
-      purchaseHash: purchaseHash || 'none',
-      createHash: createHash || 'none',
-      stackTrace: new Error().stack?.split('\n').slice(2, 5).join('\n'),
-    });
-  }, [demoState, purchaseHash, createHash]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
   const [txLogs, setTxLogs] = useState<TransactionLogEntry[]>([]);
