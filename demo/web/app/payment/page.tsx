@@ -170,7 +170,10 @@ export default function App() {
     });
 
   // Check if pool already exists (only refetch after tx confirmed or on mount)
-  const shouldRefetchPool = mounted && isConnected && (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro');
+  // Don't refetch if we're in result state (purchase completed)
+  const shouldRefetchPool = mounted && isConnected && 
+    (demoState !== 'result' && demoState !== 'purchased') &&
+    (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro' || demoState === 'creating' || demoState === 'created' || demoState === 'purchasing');
   const poolQuery = useReadContract({
     address: CONTRACT_ADDRESSES.PoolRegistry,
     abi: PoolRegistryABI,
@@ -179,6 +182,10 @@ export default function App() {
     query: { 
       enabled: shouldRefetchPool,
       refetchInterval: (query) => {
+        // Stop refetching if we're in result state (purchase completed)
+        if (demoState === 'result' || demoState === 'purchased') {
+          return false;
+        }
         // Keep refetching if we're waiting for confirmation OR if pool was created but data not available yet
         if (isCreateConfirming || isPurchaseConfirming) {
           return 2000;
@@ -255,6 +262,12 @@ export default function App() {
   }, [mounted, isConnected, addLog]);
 
   useEffect(() => {
+    // Don't run this effect if we're already in 'result' or 'purchased' state
+    // This prevents the state from being reset after purchase completes
+    if (demoState === 'result' || demoState === 'purchased') {
+      return;
+    }
+    
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
         // Check if we should go directly to checkout
