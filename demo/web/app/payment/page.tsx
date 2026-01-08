@@ -9,7 +9,6 @@ import Link from 'next/link';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { InfoCard } from '@/components/InfoCard';
 import { FlowStep } from '@/components/FlowStep';
-import { StepPreviewCard } from '@/components/StepPreviewCard';
 import { WalletButton } from '@/components/WalletButton';
 import { ActivityPanel, ActivityItem, ActivityStatus } from '@/components/ActivityPanel';
 import { EventLogPanel, EventLog } from '@/components/EventLogPanel';
@@ -912,56 +911,30 @@ export default function App() {
         <TabNavigation
           demo={
             <div className="max-w-4xl mx-auto">
-              {/* Hero Section - Private Gallery Access (Always visible) */}
-              <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-12 mb-8 text-white text-center">
-                <h1 className="text-[2.5rem] mb-4 font-bold">Private Gallery Access</h1>
-                <p className="text-[1.2rem] mb-8 opacity-90 max-w-3xl mx-auto">
-                  A composable product built from multiple on-chain services
-                </p>
-                <div className="bg-white/15 backdrop-blur-sm rounded-lg p-6 max-w-3xl mx-auto">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-                    <div>
-                      <p className="opacity-75 text-[0.85rem]">Art Collection</p>
-                      <p className="font-semibold">= Service</p>
-                    </div>
-                    <div>
-                      <p className="opacity-75 text-[0.85rem]">Hotel Space & Security</p>
-                      <p className="font-semibold">= Services</p>
-                    </div>
-                    <div>
-                      <p className="opacity-75 text-[0.85rem]">Access Package</p>
-                      <p className="font-semibold">= Pool</p>
-                    </div>
-                    <div>
-                      <p className="opacity-75 text-[0.85rem]">Providers</p>
-                      <p className="font-semibold">= Revenue Recipients</p>
-                    </div>
+              {/* Package Header */}
+              <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
+                    <p className="text-white/80 text-sm">Complete access to selected services</p>
                   </div>
-                </div>
-                
-                {/* Package Info - Below Protocol Mapping */}
-                <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 mt-6 max-w-2xl mx-auto border border-white/20">
-                  <div className="space-y-3 text-sm">
-                    <div className="text-center">
-                      <span className="text-white/80 text-xs font-medium">Package Details:</span>
-                      <div className="text-white font-semibold mt-0.5">Service Package #{DEMO_POOL.poolId}</div>
-                    </div>
-                    <div className="pt-3 border-t border-white/20 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                      <div>
-                        <span className="text-white/70 text-xs block mb-1">Pool ID</span>
-                        <span className="text-white font-mono font-semibold">#{DEMO_POOL.poolId}</span>
-                      </div>
+                  <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                    <div className="grid grid-cols-4 gap-4 text-center">
                       <div>
                         <span className="text-white/70 text-xs block mb-1">Price</span>
-                        <span className="text-white font-semibold">{DEMO_POOL.price} ETH</span>
+                        <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
                       </div>
                       <div>
                         <span className="text-white/70 text-xs block mb-1">Duration</span>
-                        <span className="text-white font-semibold">{daysDuration} days</span>
+                        <span className="text-white font-semibold text-lg">{daysDuration} days</span>
                       </div>
                       <div>
                         <span className="text-white/70 text-xs block mb-1">Fee</span>
-                        <span className="text-white font-semibold">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
+                        <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-white/70 text-xs block mb-1">Services</span>
+                        <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
                       </div>
                     </div>
                   </div>
@@ -983,53 +956,36 @@ export default function App() {
             {demoState === 'intro' && (
               <div>
 
-                {/* Pool Configuration Info */}
-                <InfoCard variant="info" className="mb-6">
-                  <h3 className="mb-3 text-[1.5rem] font-semibold">Pool Configuration</h3>
-                  <ul className="space-y-2 text-[#666666]">
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Access Duration: {daysDuration} days</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Price: {DEMO_POOL.price} ETH per pass</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Service Providers: {DEMO_POOL.members.length} {DEMO_POOL.members.length === 1 ? 'provider' : 'providers'}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Selected Services: {DEMO_POOL.members.map((m: PoolMember) => m.name).join(', ')}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Operator Fee: {Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
-                    </li>
-                  </ul>
-                </InfoCard>
-
-                {/* Step Preview Cards */}
-                <div className="space-y-4 mb-8">
-                  <StepPreviewCard 
-                    number={1}
-                    title="Create the Gallery Package"
-                    description="Set up a gallery pool with content access, venue, and security services"
-                    status="locked"
-                  />
-                  <StepPreviewCard 
-                    number={2}
-                    title="Purchase Gallery Access"
-                    description={`Buy complete access to content and all infrastructure for ${daysDuration} days`}
-                    status="locked"
-                  />
-                  <StepPreviewCard 
-                    number={3}
-                    title="View Settlement"
-                    description="See how revenue is automatically distributed to content and infrastructure providers"
-                    status="locked"
-                  />
+                {/* Selected Services Summary */}
+                <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
+                  <h3 className="mb-4 text-lg font-semibold">Selected Services</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    {DEMO_POOL.members.map((member: PoolMember, index: number) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
+                        <span className="text-2xl">
+                          {member.serviceId === '101' ? '🎨' : 
+                           member.serviceId === '102' ? '📜' :
+                           member.serviceId === '201' ? '🏨' :
+                           member.serviceId === '202' ? '🔒' :
+                           member.serviceId === '203' ? '🎭' : '📦'}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
+                          <div className="text-sm text-[#666666]">{member.shares} shares</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-[#666666]">Total Price</div>
+                      <div className="text-2xl font-bold text-[#667eea]">{DEMO_POOL.price} ETH</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-[#666666]">Duration</div>
+                      <div className="text-lg font-semibold">{daysDuration} days</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="text-center">
@@ -1047,9 +1003,9 @@ export default function App() {
             {/* Create Step */}
             {(demoState === 'creating' || demoState === 'created') && (
               <div>
-                <h2 className="mb-2 text-[1.75rem] font-semibold">Step 1 — Create the Gallery Package</h2>
+                <h2 className="mb-2 text-[1.75rem] font-semibold">Step 1: Create Package</h2>
                 <p className="text-[#666666] mb-6 text-base">
-                  Creates Pool #{DEMO_POOL.poolId} and registers 3 members (content + venue + security)
+                  Creating package with {DEMO_POOL.members.length} services
                 </p>
 
                 {/* Results KPI */}
@@ -1477,6 +1433,34 @@ export default function App() {
                     description="Revenue splits automatically to providers"
                     showArrow={false}
                   />
+                </div>
+              </section>
+
+              {/* Protocol Concepts Section */}
+              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)] mb-8">
+                <h3 className="text-center mb-6 text-[1.5rem] font-semibold">Protocol Concepts</h3>
+                <div className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-lg p-6 text-white">
+                  <p className="text-center mb-6 text-sm opacity-90">
+                    Understanding how services are composed into packages
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <p className="opacity-75 text-xs mb-1">Art Collection</p>
+                      <p className="font-semibold">= Service</p>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <p className="opacity-75 text-xs mb-1">Hotel Space & Security</p>
+                      <p className="font-semibold">= Services</p>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <p className="opacity-75 text-xs mb-1">Access Package</p>
+                      <p className="font-semibold">= Pool</p>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <p className="opacity-75 text-xs mb-1">Providers</p>
+                      <p className="font-semibold">= Revenue Recipients</p>
+                    </div>
+                  </div>
                 </div>
               </section>
 
