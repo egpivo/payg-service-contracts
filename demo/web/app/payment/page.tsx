@@ -853,13 +853,22 @@ export default function App() {
     const netRevenue = price - operatorFee;
     
     const totalShares = DEMO_POOL.members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
-    const contentShares = parseInt(DEMO_POOL.members[0].shares); // Rare Art Collection: 3 shares
-    const venueShares = parseInt(DEMO_POOL.members[1].shares); // Luxury Hotel Space: 2 shares
-    const securityShares = parseInt(DEMO_POOL.members[2].shares); // Premium Security Service: 1 share
     
-    const contentRevenue = (netRevenue * contentShares) / totalShares;
-    const venueRevenue = (netRevenue * venueShares) / totalShares;
-    const securityRevenue = (netRevenue * securityShares) / totalShares;
+    // Calculate revenue for each member dynamically
+    const memberRevenues = DEMO_POOL.members.map((member: PoolMember) => {
+      const shares = parseInt(member.shares);
+      return {
+        member,
+        revenue: totalShares > 0 ? (netRevenue * shares) / totalShares : 0,
+        shares,
+        percentage: totalShares > 0 ? (shares / totalShares) * 100 : 0,
+      };
+    });
+    
+    // For backward compatibility, keep the old structure but use first member's revenue
+    const contentRevenue = memberRevenues[0]?.revenue || 0;
+    const venueRevenue = memberRevenues[1]?.revenue || 0;
+    const securityRevenue = memberRevenues[2]?.revenue || 0;
 
     return {
       price,
@@ -869,6 +878,7 @@ export default function App() {
       venueRevenue,
       securityRevenue,
       totalShares,
+      memberRevenues, // Add new field for dynamic member revenues
     };
   };
 
@@ -1347,29 +1357,24 @@ export default function App() {
                       totalPayment={settlement.price.toFixed(4)}
                       operatorFee={settlement.operatorFee.toFixed(4)}
                       netRevenue={settlement.netRevenue.toFixed(4)}
-                      providers={[
-                        {
-                          name: 'Art Collection Provider',
-                          address: DEMO_POOL.members[0]?.registry || '0x0000000000000000000000000000000000000000',
-                          amount: settlement.contentRevenue.toFixed(4),
-                          percentage: 50,
-                          color: 'bg-[#667eea]',
-                        },
-                        {
-                          name: 'Hotel Space Provider',
-                          address: DEMO_POOL.members[1]?.registry || '0x0000000000000000000000000000000000000000',
-                          amount: settlement.venueRevenue.toFixed(4),
-                          percentage: 33.3,
-                          color: 'bg-[#3b82f6]',
-                        },
-                        {
-                          name: 'Security Service Provider',
-                          address: DEMO_POOL.members[2]?.registry || '0x0000000000000000000000000000000000000000',
-                          amount: settlement.securityRevenue.toFixed(4),
-                          percentage: 16.7,
-                          color: 'bg-[#10b981]',
-                        },
-                      ]}
+                      providers={settlement.memberRevenues.map((mr, index) => {
+                        // Color palette for different providers
+                        const colors = [
+                          'bg-[#667eea]', // Purple
+                          'bg-[#3b82f6]', // Blue
+                          'bg-[#10b981]', // Green
+                          'bg-[#f59e0b]', // Amber
+                          'bg-[#ef4444]', // Red
+                          'bg-[#8b5cf6]', // Violet
+                        ];
+                        return {
+                          name: mr.member.name,
+                          address: mr.member.registry || '0x0000000000000000000000000000000000000000',
+                          amount: mr.revenue.toFixed(4),
+                          percentage: Number(mr.percentage.toFixed(1)),
+                          color: colors[index % colors.length],
+                        };
+                      })}
                     />
                     {userEarnings !== undefined && (
                       <div className="mt-4 pt-4 border-t border-[#e0e0e0]">
