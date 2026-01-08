@@ -76,6 +76,17 @@ export default function App() {
   const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>('intro');
+  
+  // Debug: Track all state changes
+  useEffect(() => {
+    console.log(`[STATE] demoState changed to: ${demoState}`, {
+      purchaseCompleted: purchaseCompletedRef.current,
+      purchaseReceiptFoundSize: purchaseReceiptFound.current.size,
+      purchaseHash: purchaseHash || 'none',
+      createHash: createHash || 'none',
+      stackTrace: new Error().stack?.split('\n').slice(2, 5).join('\n'),
+    });
+  }, [demoState, purchaseHash, createHash]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
   const [txLogs, setTxLogs] = useState<TransactionLogEntry[]>([]);
@@ -86,6 +97,14 @@ export default function App() {
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchaseReceiptFound = useRef<Set<string>>(new Set()); // Track which purchase hashes have been confirmed
   const purchaseCompletedRef = useRef<boolean>(false); // Track if purchase has been completed - NEVER reset this
+
+  // Debug: Track all state changes
+  const setDemoStateWithLog = useCallback((newState: DemoState, reason: string) => {
+    const oldState = demoState;
+    console.log(`[STATE CHANGE] ${oldState} -> ${newState} | Reason: ${reason} | PurchaseCompleted: ${purchaseCompletedRef.current}`);
+    console.trace('[STATE CHANGE STACK]');
+    setDemoState(newState);
+  }, [demoState]);
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
@@ -868,6 +887,12 @@ export default function App() {
 
   useEffect(() => {
     if (purchaseReceipt && !loggedEventTx.current.has(purchaseReceipt.transactionHash)) {
+      console.log('[PURCHASE RECEIPT] Receipt received', {
+        txHash: purchaseReceipt.transactionHash,
+        currentState: demoState,
+        purchaseCompleted: purchaseCompletedRef.current,
+      });
+      
       loggedEventTx.current.add(purchaseReceipt.transactionHash);
       
       // Mark receipt as found
@@ -875,9 +900,11 @@ export default function App() {
       
       // CRITICAL: Mark purchase as completed - this flag is NEVER reset
       purchaseCompletedRef.current = true;
+      console.log('[PURCHASE RECEIPT] Marking purchase as completed');
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('purchaseCompleted', 'true');
         sessionStorage.setItem('demoState', 'result');
+        console.log('[PURCHASE RECEIPT] Saved to sessionStorage');
       }
       
       // Find and update activity in a single setActivities call to avoid race condition
@@ -899,7 +926,10 @@ export default function App() {
       
       // Transition to result state if not already there
       if (demoState !== 'result') {
+        console.log('[PURCHASE RECEIPT] Setting state to result');
         setDemoState('result');
+      } else {
+        console.log('[PURCHASE RECEIPT] Already in result state, skipping');
       }
       // Parse events from receipt
       const events: { name: string; args: Record<string, any> }[] = [];
