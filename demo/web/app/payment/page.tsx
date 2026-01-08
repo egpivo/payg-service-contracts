@@ -258,8 +258,12 @@ export default function App() {
   useEffect(() => {
     if (mounted && isConnected) {
       addLog('info', 'Wallet connected');
+    } else if (mounted && !isConnected && demoState !== 'intro') {
+      // Don't reset state when wallet disconnects - just log it
+      // This prevents the flow from resetting if user accidentally disconnects
+      addLog('warning', 'Wallet disconnected. Please reconnect to continue.');
     }
-  }, [mounted, isConnected, addLog]);
+  }, [mounted, isConnected, addLog, demoState]);
 
   useEffect(() => {
     // Don't run this effect if we're already in 'result' or 'purchased' state
@@ -578,19 +582,28 @@ export default function App() {
       };
 
       // Check immediately and then every 2 seconds
-      checkReceipt();
-      const interval = setInterval(checkReceipt, 2000);
+      let checkCount = 0;
+      const maxChecks = 30; // 30 checks = 60 seconds
       
-      // Clear after 30 seconds if still pending
-      manualCheckTimeout.current = setTimeout(() => {
-        clearInterval(interval);
-        addLog('warning', 'Transaction still pending after 30 seconds. Please check network and try again.');
-      }, 30000);
+      const startChecking = async () => {
+        const found = await checkReceipt();
+        if (!found && checkCount < maxChecks) {
+          checkCount++;
+          const timeoutId = setTimeout(startChecking, 2000);
+          manualCheckTimeout.current = timeoutId;
+        } else if (checkCount >= maxChecks && !found) {
+          addLog('warning', 'Transaction still pending after 60 seconds. Please check network and try again.');
+        }
+      };
+      
+      // Start checking after a short delay to allow transaction to be mined
+      const initialTimeoutId = setTimeout(() => startChecking(), 1000);
+      manualCheckTimeout.current = initialTimeoutId;
 
       return () => {
-        clearInterval(interval);
         if (manualCheckTimeout.current) {
           clearTimeout(manualCheckTimeout.current);
+          manualCheckTimeout.current = null;
         }
       };
     }
