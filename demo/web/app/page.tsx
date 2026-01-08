@@ -28,9 +28,9 @@ const DEMO_POOL = {
   duration: '604800', // 7 days
   operatorFeeBps: '200', // 2%
   members: [
-    { serviceId: '101', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '3', name: 'Content Access' },
-    { serviceId: '201', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '2', name: 'Gallery Venue' },
-    { serviceId: '202', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '1', name: 'Security Service' },
+    { serviceId: '101', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '3', name: 'Rare Art Collection' },
+    { serviceId: '201', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '2', name: 'Luxury Hotel Space' },
+    { serviceId: '202', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '1', name: 'Premium Security Service' },
   ],
 };
 
@@ -729,9 +729,9 @@ export default function App() {
     const netRevenue = price - operatorFee;
     
     const totalShares = DEMO_POOL.members.reduce((sum, m) => sum + parseInt(m.shares), 0);
-    const contentShares = parseInt(DEMO_POOL.members[0].shares); // Content Access: 3 shares
-    const venueShares = parseInt(DEMO_POOL.members[1].shares); // Gallery Venue: 2 shares
-    const securityShares = parseInt(DEMO_POOL.members[2].shares); // Security Service: 1 share
+    const contentShares = parseInt(DEMO_POOL.members[0].shares); // Rare Art Collection: 3 shares
+    const venueShares = parseInt(DEMO_POOL.members[1].shares); // Luxury Hotel Space: 2 shares
+    const securityShares = parseInt(DEMO_POOL.members[2].shares); // Premium Security Service: 1 share
     
     const contentRevenue = (netRevenue * contentShares) / totalShares;
     const venueRevenue = (netRevenue * venueShares) / totalShares;
@@ -1131,7 +1131,7 @@ export default function App() {
                   </div>
                   {(isPurchasing || isPurchaseConfirming) && (
                     <div className="text-xs text-[#999999]">
-                      💡 If MetaMask popup is open, please <strong>reject</strong> the transaction there, then click "Back" above.
+                      💡 If MetaMask popup is open, please <strong>reject</strong> the transaction there, then click &quot;Back&quot; above.
                     </div>
                   )}
                 </div>
@@ -1174,10 +1174,10 @@ export default function App() {
                     <div className="bg-white rounded-lg p-4 border border-[#10b981]/30">
                       <h3 className="mb-3 text-xl font-semibold">Revenue Distribution ({settlement.netRevenue.toFixed(4)} ETH)</h3>
                       <div className="space-y-4">
-                        {/* Content Provider */}
+                        {/* Art Collection Provider */}
                         <div>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Content Provider</span>
+                            <span className="text-[#666666]">Art Collection Provider</span>
                             <span className="text-[#1a1a1a] font-semibold">{settlement.contentRevenue.toFixed(4)} ETH (50%)</span>
                           </div>
                           <div className="w-full bg-[#e5e7eb] rounded-full h-4">
@@ -1187,10 +1187,10 @@ export default function App() {
                             />
                           </div>
                         </div>
-                        {/* Venue Provider */}
+                        {/* Hotel Space Provider */}
                         <div>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Venue Provider</span>
+                            <span className="text-[#666666]">Hotel Space Provider</span>
                             <span className="text-[#1a1a1a] font-semibold">{settlement.venueRevenue.toFixed(4)} ETH (33.3%)</span>
                           </div>
                           <div className="w-full bg-[#e5e7eb] rounded-full h-4">
@@ -1200,10 +1200,10 @@ export default function App() {
                             />
                           </div>
                         </div>
-                        {/* Security Provider */}
+                        {/* Security Service Provider */}
                         <div>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Security Provider</span>
+                            <span className="text-[#666666]">Security Service Provider</span>
                             <span className="text-[#1a1a1a] font-semibold">{settlement.securityRevenue.toFixed(4)} ETH (16.7%)</span>
                           </div>
                           <div className="w-full bg-[#e5e7eb] rounded-full h-4">

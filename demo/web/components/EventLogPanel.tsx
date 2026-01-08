@@ -185,9 +185,9 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
                                   <>
                                     {(() => {
                                       const serviceNames: Record<string, string> = {
-                                        '101': 'Article #101',
-                                        '201': 'Venue #201',
-                                        '202': 'Security #202',
+                                        '101': 'Rare Art Collection #101',
+                                        '201': 'Luxury Hotel Space #201',
+                                        '202': 'Premium Security #202',
                                       };
                                       const serviceIdStr = String(event.args.serviceId);
                                       const serviceName = serviceNames[serviceIdStr] || `Service #${serviceIdStr}`;

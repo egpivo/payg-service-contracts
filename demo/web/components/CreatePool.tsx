@@ -58,13 +58,40 @@ export function CreatePool() {
     });
   };
 
-  const loadExample = () => {
-    setPoolId('1');
-    setPrice('0.1');
-    setAccessDuration('86400'); // 1 day
-    setOperatorFeeBps('200');
-    // Example: Article + Rental pool
-    setMembersInput('1:0x1234567890123456789012345678901234567890:100\n2:0x1234567890123456789012345678901234567890:200');
+  const loadLibraryExample = () => {
+    // Mobile Library Example: Multiple authors (books) in one library pass
+    // Pool #42: 1 ETH for 7 days, operator fee 2%
+    // Members: Article(101) weight=2, Article(102) weight=1, Article(103) weight=1
+    // All from same ArticleRegistry (like different authors in the library)
+    setPoolId('42');
+    setPrice('1');
+    setAccessDuration('604800'); // 7 days = 7 * 24 * 60 * 60
+    setOperatorFeeBps('200'); // 2%
+    // Format: serviceId:registry:shares
+    // Simulating ArticleRegistry at a specific address
+    // In real deployment, use actual deployed ArticleRegistry address
+    setMembersInput(
+      '101:0x1234567890123456789012345678901234567890:2\n' +  // Author A's article (weight 2)
+      '102:0x1234567890123456789012345678901234567890:1\n' +  // Author B's article (weight 1)
+      '103:0x1234567890123456789012345678901234567890:1'      // Author C's article (weight 1)
+    );
+  };
+
+  const loadCrossRegistryExample = () => {
+    // Cross-Module Example: Art Collections + Hotel Spaces
+    // Pool #42: 1 ETH for 7 days, operator fee 2%
+    // Members: Rare Art Collection(101) weight=3, Luxury Hotel Space(201) weight=2, Premium Security(202) weight=1
+    // Demonstrates cross-registry composition: art collections + hotel spaces rented by service providers
+    setPoolId('42');
+    setPrice('1');
+    setAccessDuration('604800'); // 7 days
+    setOperatorFeeBps('200'); // 2%
+    // Same serviceId from different registries is allowed!
+    setMembersInput(
+      '101:0x1111111111111111111111111111111111111111:3\n' + // Rare Art Collection #101 from ArticleRegistry
+      '201:0x2222222222222222222222222222222222222222:2\n' + // Luxury Hotel Space #201 from RentalRegistry
+      '202:0x2222222222222222222222222222222222222222:1'     // Premium Security #202 from RentalRegistry
+    );
   };
 
   return (
@@ -75,16 +102,71 @@ export function CreatePool() {
           What users buy, who gets paid, and how revenue is split.
         </p>
       </div>
-      <div style={{ marginBottom: '1.5rem' }}>
+
+      {/* Quick Start Callout */}
+      <div style={{ 
+        marginBottom: '1.5rem', 
+        padding: '1rem', 
+        background: '#fff3cd',
+        borderRadius: '8px',
+        borderLeft: '4px solid #ffc107'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>💡</span>
+          <strong style={{ fontSize: '0.95rem', color: '#856404' }}>Quick Start</strong>
+        </div>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#856404', lineHeight: '1.5' }}>
+          Click <strong>&quot;📚 Mobile Library Example&quot;</strong> to load a real scenario: 3 authors, 1 library pass, 
+          automatic revenue split. This demonstrates the core concept from the hero section above.
+        </p>
+      </div>
+
+      {/* Cross-Registry Feature Highlight */}
+      <div style={{ 
+        marginBottom: '1.5rem', 
+        padding: '1rem', 
+        background: '#e8f4f8',
+        borderRadius: '6px',
+        borderLeft: '4px solid #2196F3'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🌐</span>
+          <strong style={{ fontSize: '0.95rem' }}>Cross-Registry Composition</strong>
+        </div>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#555', lineHeight: '1.5' }}>
+          <strong>Key Feature:</strong> The same serviceId can exist in different registries! 
+          This enables true cross-module composition (e.g., Article #1 + Rental #1 from different modules).
+          Try both examples below.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={loadExample}
+          onClick={loadLibraryExample}
           className="button button-secondary"
-          style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+          style={{ 
+            fontSize: '0.9rem', 
+            padding: '0.75rem 1.5rem', 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+            color: 'white',
+            fontWeight: '600',
+            border: 'none',
+            boxShadow: '0 2px 4px rgba(102, 126, 234, 0.3)'
+          }}
         >
-          Load Example
+          📚 Mobile Library Example
+        </button>
+        <button
+          type="button"
+          onClick={loadCrossRegistryExample}
+          className="button button-secondary"
+          style={{ fontSize: '0.9rem', padding: '0.75rem 1.5rem' }}
+        >
+          🌐 Cross-Module Example
         </button>
       </div>
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Product ID</label>
@@ -93,7 +175,7 @@ export function CreatePool() {
             value={poolId}
             onChange={(e) => setPoolId(e.target.value)}
             required
-            placeholder="e.g., 1"
+            placeholder="e.g., 42"
           />
         </div>
 
@@ -104,8 +186,11 @@ export function CreatePool() {
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             required
-            placeholder="e.g., 0.1 ETH"
+            placeholder="e.g., 1 ETH"
           />
+          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem' }}>
+            One payment unlocks access to all services in the pool.
+          </small>
         </div>
 
         <div className="form-group">
@@ -115,8 +200,12 @@ export function CreatePool() {
             value={accessDuration}
             onChange={(e) => setAccessDuration(e.target.value)}
             required
-            placeholder="e.g., 86400 (1 day)"
+            placeholder="e.g., 604800 (7 days)"
           />
+          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem' }}>
+            💡 Renewal behavior: If access is active, renewal extends from current expiry (no time lost). 
+            If expired, renewal starts from now.
+          </small>
         </div>
 
         <div className="form-group">
@@ -128,22 +217,40 @@ export function CreatePool() {
             required
             placeholder="e.g., 200"
           />
+          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem' }}>
+            Operator fee is deducted before revenue split. Net revenue = Price - (Price × OperatorFee%)
+          </small>
         </div>
 
         <div className="form-group">
           <label>
-            Revenue Recipients (providers)
+            Revenue Recipients (providers/authors)
             <br />
             <small style={{ fontWeight: 'normal', color: '#666' }}>
               One per line: serviceId:registry:shares
+              <br />
+              <strong>Example:</strong> Same serviceId from different registries is allowed!
+              <br />
+              <code style={{ fontSize: '0.8rem', background: '#f0f0f0', padding: '0.2rem 0.4rem', borderRadius: '3px', display: 'block', marginTop: '0.25rem' }}>
+                101:0x1111...1111:2  ← Article #101 from ArticleRegistry (weight 2)
+                <br />
+                201:0x2222...2222:1  ← Rental #201 from RentalRegistry (weight 1)
+                <br />
+                <span style={{ color: '#666' }}>Same serviceId from different registries = cross-registry composition</span>
+              </code>
             </small>
           </label>
           <textarea
             value={membersInput}
             onChange={(e) => setMembersInput(e.target.value)}
             required
-            placeholder="1:0x1234...5678:100&#10;2:0x1234...5678:200"
+            rows={6}
+            placeholder="101:0x1234...5678:2&#10;102:0x1234...5678:1"
           />
+          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem' }}>
+            <strong>Shares are weights, not percentages.</strong> Revenue is split proportionally. 
+            Remainder goes to the first provider (deterministic tie-breaker).
+          </small>
         </div>
 
         <button
@@ -163,10 +270,13 @@ export function CreatePool() {
         {isConfirmed && (
           <div className="status status-success" style={{ marginTop: '1rem' }}>
             Pool created successfully! Transaction: {hash?.slice(0, 10)}...
+            <br />
+            <small style={{ display: 'block', marginTop: '0.5rem' }}>
+              ✅ One product created • Multiple providers configured • Revenue split defined
+            </small>
           </div>
         )}
       </form>
     </div>
   );
 }
-
