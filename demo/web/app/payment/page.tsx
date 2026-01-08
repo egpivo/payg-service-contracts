@@ -21,6 +21,7 @@ import { TransactionProgress } from '@/components/TransactionProgress';
 import { RevenueDistribution } from '@/components/RevenueDistribution';
 import { MoneyFlowDiagram } from '@/components/MoneyFlowDiagram';
 import { SettlementSuccessCard } from '@/components/SettlementSuccessCard';
+import { PurchaseFailureCard } from '@/components/PurchaseFailureCard';
 import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
@@ -66,7 +67,7 @@ const DEFAULT_POOL = {
   ],
 };
 
-type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result';
+type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result' | 'purchase_failed';
 
 export default function App() {
   const router = useRouter();
@@ -174,7 +175,7 @@ export default function App() {
   // Don't refetch if we're in result state (purchase completed)
   // Also don't refetch if purchase was confirmed (even if state hasn't updated yet)
   const shouldRefetchPool = mounted && isConnected && 
-    (demoState !== 'result' && demoState !== 'purchased') &&
+    (demoState !== 'result' && demoState !== 'purchased' && demoState !== 'purchase_failed') &&
     !(purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) &&
     (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro' || demoState === 'creating' || demoState === 'created' || demoState === 'purchasing');
   const poolQuery = useReadContract({
@@ -185,8 +186,8 @@ export default function App() {
     query: { 
       enabled: shouldRefetchPool,
       refetchInterval: (query) => {
-        // Stop refetching if we're in result state (purchase completed)
-        if (demoState === 'result' || demoState === 'purchased') {
+        // Stop refetching if we're in result state (purchase completed) or failed state
+        if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchase_failed') {
           return false;
         }
         // Stop refetching if purchase was confirmed (even if state hasn't updated yet)
@@ -277,7 +278,7 @@ export default function App() {
     // Also don't run if we're in 'purchasing' state - let purchase confirmation handle state transitions
     // Also don't run if purchase was confirmed (even if state hasn't updated yet)
     // This prevents the state from being reset after purchase completes or during purchase
-    if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing') {
+    if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing' || demoState === 'purchase_failed') {
       return;
     }
     
@@ -867,6 +868,9 @@ export default function App() {
     }
   }, [purchaseReceipt, updateActivity, addLog, demoState]);
 
+  // Store purchase error message for display
+  const [purchaseErrorMessage, setPurchaseErrorMessage] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (purchaseHash && isPurchaseError) {
       // Find and update activity in a single setActivities call to avoid race condition
@@ -879,10 +883,14 @@ export default function App() {
         txHash: purchaseHash,
         status: 'reverted',
       });
-      // Reset to 'created' state so user can retry purchase
+      // Set error message if available
+      // Note: wagmi's useWaitForTransactionReceipt doesn't provide error message directly
+      // We'll use a generic message or try to extract from error if available
+      setPurchaseErrorMessage('Transaction failed or was reverted');
+      // Transition to purchase_failed state so user can see failure page
       // But only if we're still in 'purchasing' state (not already in 'result')
       if (demoState === 'purchasing') {
-        setDemoState('created');
+        setDemoState('purchase_failed');
       }
     }
   }, [purchaseHash, isPurchaseError, updateActivity, addLog, demoState]);
@@ -1631,6 +1639,51 @@ export default function App() {
                   )}
                 </div>
                   </>
+                )}
+              </div>
+            )}
+
+            {/* Purchase Failed State */}
+            {demoState === 'purchase_failed' && (
+              <div>
+                <h2 className="mb-2 text-[1.75rem] font-semibold">Purchase Failed</h2>
+                <p className="text-[#666666] mb-6 text-lg">
+                  The purchase transaction could not be completed. Please review the error and try again.
+                </p>
+
+                {/* Purchase Failure Card */}
+                <div className="mb-6">
+                  <PurchaseFailureCard
+                    txHash={purchaseHash || undefined}
+                    errorMessage={purchaseErrorMessage}
+                    onRetry={() => {
+                      // Reset purchase state and retry
+                      if (purchaseHash) {
+                        resetPurchase();
+                      }
+                      setPurchaseErrorMessage(undefined);
+                      setDemoState('created');
+                      // Trigger purchase again
+                      setTimeout(() => {
+                        handlePurchase();
+                      }, 100);
+                    }}
+                    onBack={() => {
+                      // Reset purchase state and go back to created state
+                      if (purchaseHash) {
+                        resetPurchase();
+                      }
+                      setPurchaseErrorMessage(undefined);
+                      setDemoState('created');
+                    }}
+                  />
+                </div>
+
+                {/* Transaction Activity */}
+                {activities.length > 0 && (
+                  <div className="mb-6">
+                    <ActivityPanel activities={activities} />
+                  </div>
                 )}
               </div>
             )}
