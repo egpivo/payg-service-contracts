@@ -329,7 +329,7 @@ export default function App() {
       const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
       const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
       
-      if (goToCheckout && hasSelectedConfig && poolData && poolData[0] !== BigInt(DEMO_POOL.poolId)) {
+      if (goToCheckout && hasSelectedConfig && (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId))) {
         // Pool doesn't exist, auto-create it
         if (!isCreating && !createHash) {
           setDemoState('creating');
@@ -527,14 +527,10 @@ export default function App() {
   useEffect(() => {
     if (createHash && isCreateConfirming && !loggedConfirmingTx.current.has(createHash)) {
       loggedConfirmingTx.current.add(createHash);
-      // Find activity using setActivities to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === createHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'pending' });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === createHash ? { ...act, status: 'pending' as ActivityStatus } : act
+      ));
       addLog('info', 'Waiting for transaction confirmations', {
         txHash: createHash,
         status: 'pending',
@@ -710,18 +706,12 @@ export default function App() {
               gasUsed: BigInt(data.result.gasUsed || '0'),
               blockNumber: BigInt(data.result.blockNumber || '0'),
             });
-            // Update activity status (using setActivities to avoid dependency)
-            setActivities(prev => {
-              const activity = prev.find(a => a.txHash === purchaseHash);
-              if (activity) {
-                updateActivity(activity.id, {
-                  status: 'confirmed',
-                  blockNumber: BigInt(data.result.blockNumber || '0'),
-                  gasUsed: BigInt(data.result.gasUsed || '0'),
-                });
-              }
-              return prev;
-            });
+            // Update activity status in a single setActivities call to avoid race condition
+            setActivities(prev => prev.map(act => 
+              act.txHash === purchaseHash 
+                ? { ...act, status: 'confirmed' as ActivityStatus, blockNumber: BigInt(data.result.blockNumber || '0'), gasUsed: BigInt(data.result.gasUsed || '0') }
+                : act
+            ));
             // Update state to result - this will trigger the useEffect that sets demoState to 'result'
             setDemoState('result');
             return true; // Found receipt
@@ -762,14 +752,10 @@ export default function App() {
   useEffect(() => {
     if (purchaseHash && isPurchaseConfirming && !loggedConfirmingTx.current.has(purchaseHash)) {
       loggedConfirmingTx.current.add(purchaseHash);
-      // Find activity using setActivities to avoid dependency on activities array
-      setActivities(prev => {
-        const activity = prev.find(a => a.txHash === purchaseHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'pending' });
-        }
-        return prev;
-      });
+      // Find and update activity in a single setActivities call to avoid race condition
+      setActivities(prev => prev.map(act => 
+        act.txHash === purchaseHash ? { ...act, status: 'pending' as ActivityStatus } : act
+      ));
       addLog('info', 'Waiting for transaction confirmations', {
         txHash: purchaseHash,
         status: 'pending',
