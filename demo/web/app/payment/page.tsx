@@ -242,16 +242,29 @@ export default function App() {
             totalShares: poolData[3],
           },
         });
-      } else if (demoState === 'creating' && isCreateConfirmed) {
-        // Log pool state after creation
-        addLog('success', 'Pool created successfully', {
-          poolState: {
-            exists: true,
-            members: Number(poolData[2]),
-            totalShares: poolData[3],
-          },
-        });
-        // Always transition to 'created' state when pool is confirmed and data is available
+      } else if (demoState === 'creating') {
+        // Transition to 'created' state when pool data is available
+        // This works even if isCreateConfirmed hasn't updated yet (backup logic)
+        if (isCreateConfirmed) {
+          // Log pool state after creation
+          addLog('success', 'Pool created successfully', {
+            poolState: {
+              exists: true,
+              members: Number(poolData[2]),
+              totalShares: poolData[3],
+            },
+          });
+        } else {
+          // Pool data exists but isCreateConfirmed not yet true - log anyway
+          addLog('info', 'Pool data detected, transitioning to purchase step', {
+            poolState: {
+              exists: true,
+              members: Number(poolData[2]),
+              totalShares: poolData[3],
+            },
+          });
+        }
+        // Always transition to 'created' state when pool data is available
         // This ensures pool data is loaded before showing purchase step
         setDemoState('created');
         // Check if we should go directly to checkout after creation
