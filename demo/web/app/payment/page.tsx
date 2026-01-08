@@ -17,6 +17,9 @@ import { BeforeAfterPanel } from '@/components/BeforeAfterPanel';
 import { TabNavigation } from '@/components/TabNavigation';
 import { DeveloperToggle } from '@/components/DeveloperToggle';
 import { TransactionLog, TransactionLogEntry, LogLevel } from '@/components/TransactionLog';
+import { TransactionProgress } from '@/components/TransactionProgress';
+import { RevenueDistribution } from '@/components/RevenueDistribution';
+import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
@@ -907,6 +910,11 @@ export default function App() {
           </div>
         </section>
 
+        {/* Network Switch Warning */}
+        {mounted && isConnected && (
+          <NetworkSwitchButton targetChainId={31337} targetChainName="Localhost 8545" />
+        )}
+
         {/* Tab Navigation */}
         <TabNavigation
           checkout={
@@ -1008,6 +1016,17 @@ export default function App() {
                   Creating package with {DEMO_POOL.members.length} services
                 </p>
 
+                {/* Transaction Progress */}
+                <TransactionProgress
+                  currentStep={isCreateConfirmed ? 3 : (createHash ? 2 : 1)}
+                  totalSteps={3}
+                  steps={[
+                    { label: 'Initialize Contract', status: createHash ? 'completed' : (isCreating ? 'active' : 'pending') },
+                    { label: 'Authorize Transaction', status: isCreateConfirming ? 'active' : (createHash ? 'completed' : 'pending') },
+                    { label: 'Complete', status: isCreateConfirmed ? 'completed' : 'pending' },
+                  ]}
+                />
+
                 {/* Results KPI */}
                 <div className="mb-6">
                   <BeforeAfterPanel 
@@ -1020,7 +1039,7 @@ export default function App() {
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} />
+                  <TransactionLog logs={txLogs} chainId={chainId} />
                 </div>
 
                 {/* Protocol State Panel */}
@@ -1146,6 +1165,17 @@ export default function App() {
                   Buy complete access to your selected services for {daysDuration} days
                 </p>
 
+                {/* Transaction Progress */}
+                <TransactionProgress
+                  currentStep={isPurchaseConfirmed ? 3 : (purchaseHash ? 2 : 1)}
+                  totalSteps={3}
+                  steps={[
+                    { label: 'Approve Payment', status: purchaseHash ? 'completed' : (isPurchasing ? 'active' : 'pending') },
+                    { label: 'Confirm Transaction', status: isPurchaseConfirming ? 'active' : (purchaseHash ? 'completed' : 'pending') },
+                    { label: 'Complete', status: isPurchaseConfirmed ? 'completed' : 'pending' },
+                  ]}
+                />
+
                 {/* Selected Services Display */}
                 <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
                   <h3 className="text-lg font-semibold mb-4 text-[#1a1a1a]">Selected Services:</h3>
@@ -1172,7 +1202,7 @@ export default function App() {
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} />
+                  <TransactionLog logs={txLogs} chainId={chainId} />
                 </div>
 
                 <div className="text-center mb-8">
@@ -1234,6 +1264,13 @@ export default function App() {
                 )}
 
                 <div className="text-center space-y-3">
+                  {!isPurchasing && !isPurchaseConfirming && (
+                    <div className="mb-3 text-sm text-[#666666] bg-[#f8f9fa] rounded-lg p-3 border border-[#e0e0e0]">
+                      <span className="font-semibold">Total Payment:</span> {DEMO_POOL.price} ETH + estimated gas fee
+                      <br />
+                      <span className="text-xs text-[#999999]">Gas fee will be shown in MetaMask confirmation popup</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-center gap-4">
                     <button
                       onClick={handleBackFromPurchase}
@@ -1297,50 +1334,34 @@ export default function App() {
                       <span className="text-[#1a1a1a] font-semibold">{settlement.operatorFee.toFixed(4)} ETH</span>
                     </div>
 
-                    <div className="bg-white rounded-lg p-4 border border-[#10b981]/30">
-                      <h3 className="mb-3 text-xl font-semibold">Revenue Distribution ({settlement.netRevenue.toFixed(4)} ETH)</h3>
-                      <div className="space-y-4">
-                        {/* Art Collection Provider */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Art Collection Provider</span>
-                            <span className="text-[#1a1a1a] font-semibold">{settlement.contentRevenue.toFixed(4)} ETH (50%)</span>
-                          </div>
-                          <div className="w-full bg-[#e5e7eb] rounded-full h-4">
-                            <div 
-                              className="bg-[#667eea] h-4 rounded-full" 
-                              style={{ width: '50%' }}
-                            />
-                          </div>
-                        </div>
-                        {/* Hotel Space Provider */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Hotel Space Provider</span>
-                            <span className="text-[#1a1a1a] font-semibold">{settlement.venueRevenue.toFixed(4)} ETH (33.3%)</span>
-                          </div>
-                          <div className="w-full bg-[#e5e7eb] rounded-full h-4">
-                            <div 
-                              className="bg-[#3b82f6] h-4 rounded-full" 
-                              style={{ width: '33.3%' }}
-                            />
-                          </div>
-                        </div>
-                        {/* Security Service Provider */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#666666]">Security Service Provider</span>
-                            <span className="text-[#1a1a1a] font-semibold">{settlement.securityRevenue.toFixed(4)} ETH (16.7%)</span>
-                          </div>
-                          <div className="w-full bg-[#e5e7eb] rounded-full h-4">
-                            <div 
-                              className="bg-[#10b981] h-4 rounded-full" 
-                              style={{ width: '16.7%' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <RevenueDistribution
+                      totalPayment={settlement.price.toFixed(4)}
+                      operatorFee={settlement.operatorFee.toFixed(4)}
+                      netRevenue={settlement.netRevenue.toFixed(4)}
+                      providers={[
+                        {
+                          name: 'Art Collection Provider',
+                          address: DEMO_POOL.members[0]?.registry || '0x0000000000000000000000000000000000000000',
+                          amount: settlement.contentRevenue.toFixed(4),
+                          percentage: 50,
+                          color: 'bg-[#667eea]',
+                        },
+                        {
+                          name: 'Hotel Space Provider',
+                          address: DEMO_POOL.members[1]?.registry || '0x0000000000000000000000000000000000000000',
+                          amount: settlement.venueRevenue.toFixed(4),
+                          percentage: 33.3,
+                          color: 'bg-[#3b82f6]',
+                        },
+                        {
+                          name: 'Security Service Provider',
+                          address: DEMO_POOL.members[2]?.registry || '0x0000000000000000000000000000000000000000',
+                          amount: settlement.securityRevenue.toFixed(4),
+                          percentage: 16.7,
+                          color: 'bg-[#10b981]',
+                        },
+                      ]}
+                    />
                     {userEarnings !== undefined && (
                       <div className="mt-4 pt-4 border-t border-[#e0e0e0]">
                         <div className="text-sm text-[#666666]">
