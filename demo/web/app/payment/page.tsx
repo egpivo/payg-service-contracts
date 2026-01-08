@@ -243,10 +243,12 @@ export default function App() {
             totalShares: poolData[3],
           },
         });
+        // Always transition to 'created' state when pool is confirmed and data is available
+        // This ensures pool data is loaded before showing purchase step
+        setDemoState('created');
         // Check if we should go directly to checkout after creation
         const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
         if (goToCheckout) {
-          setDemoState('created'); // Go to purchase stage
           sessionStorage.removeItem('goToCheckout'); // Clear flag
         }
       }
@@ -344,8 +346,18 @@ export default function App() {
               gasUsed: BigInt(data.result.gasUsed || '0'),
               blockNumber: BigInt(data.result.blockNumber || '0'),
             });
-            // Update state - this will trigger other useEffects
-            setDemoState('created');
+            // Trigger pool refetch to ensure data is updated before state transition
+            // The useEffect at line 237 will handle state transition when poolData updates
+            // This ensures pool data is available before moving to 'created' state
+            setTimeout(async () => {
+              if (refetchPool) {
+                try {
+                  await refetchPool();
+                } catch (error) {
+                  console.error('Error refetching pool after manual check:', error);
+                }
+              }
+            }, 1000); // Wait for block to be processed
             return true; // Found receipt
           }
           // Also check if transaction exists in mempool
@@ -400,7 +412,7 @@ export default function App() {
         createPollingTimeouts.current = [];
       };
     }
-  }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity]);
+  }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity, refetchPool]);
 
   // Refetch pool after create confirmed
   useEffect(() => {
@@ -412,20 +424,36 @@ export default function App() {
         blockNumber: createReceipt.blockNumber,
       });
       
-      // Refetch pool state after confirmation
+      // Refetch pool state after confirmation - wait a bit for block to be processed
+      // The state transition will happen in the useEffect at line 237 when poolData updates
       setTimeout(async () => {
-        const result = await refetchPool();
-        if (result.data) {
-          const pool = result.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint];
-          addLog('success', 'Pool state refetched', {
-            poolState: {
-              exists: true,
-              members: Number(pool[2]),
-              totalShares: pool[3],
-            },
-          });
+        try {
+          const result = await refetchPool();
+          if (result.data) {
+            const pool = result.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint];
+            addLog('success', 'Pool state refetched', {
+              poolState: {
+                exists: true,
+                members: Number(pool[2]),
+                totalShares: pool[3],
+              },
+            });
+          } else {
+            // Pool not found yet, try again after a longer delay
+            addLog('info', 'Pool not found yet, will retry...');
+            setTimeout(async () => {
+              await refetchPool();
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Error refetching pool:', error);
+          addLog('warning', 'Error refetching pool state, will retry...');
+          // Retry once more
+          setTimeout(async () => {
+            await refetchPool();
+          }, 2000);
         }
-      }, 500);
+      }, 1000); // Increased delay to ensure block is processed
     }
   }, [isCreateConfirmed, createReceipt, refetchPool, addLog]);
 
