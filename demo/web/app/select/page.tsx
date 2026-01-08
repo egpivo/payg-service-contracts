@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
@@ -100,9 +100,14 @@ const PACKAGE_OPTIONS: PackageOption[] = [
 export default function SelectPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [customServices, setCustomServices] = useState<string[]>([]);
   const [showCustom, setShowCustom] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSelectPackage = (pkgId: string) => {
     setSelectedPackage(pkgId);
@@ -149,7 +154,17 @@ export default function SelectPage() {
     ? PACKAGE_OPTIONS.find(p => p.id === selectedPackage)?.services || []
     : customServices.map(id => AVAILABLE_SERVICES.find(s => s.id === id)!).filter(Boolean);
 
-  const canProceed = (selectedPackage || customServices.length > 0) && isConnected;
+  const canProceed = (selectedPackage || customServices.length > 0) && (mounted ? isConnected : false);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg text-[#666666]">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e8e8e8]">
@@ -173,7 +188,7 @@ export default function SelectPage() {
           </div>
         </div>
 
-        {!isConnected && (
+        {mounted && !isConnected && (
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-8 text-center">
             <p className="text-yellow-800 font-semibold">
               Please connect your wallet to proceed with service selection
