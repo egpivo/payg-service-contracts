@@ -272,6 +272,16 @@ export default function App() {
     setMounted(true);
   }, []);
 
+  // Debug: Track all state changes
+  useEffect(() => {
+    console.log(`[STATE] demoState changed to: ${demoState}`, {
+      purchaseCompleted: purchaseCompletedRef.current,
+      purchaseReceiptFoundSize: purchaseReceiptFound.current.size,
+      purchaseHash: purchaseHash || 'none',
+      createHash: createHash || 'none',
+    });
+  }, [demoState, purchaseHash, createHash]);
+
   useEffect(() => {
     if (mounted && isConnected) {
       addLog('info', 'Wallet connected');
