@@ -24,7 +24,7 @@ import { SettlementSuccessCard } from '@/components/SettlementSuccessCard';
 import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
-import { CONTRACT_ADDRESSES } from '@/config';
+import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
 import { getServiceIcon, CheckIcon, LightBulbIcon } from '@/components/Icons';
 
 // Service name mapping
@@ -53,15 +53,16 @@ interface PoolMember {
 }
 
 // Default pool configuration
+// Demonstrates cross-registry composition: ArticleRegistry (#101) + RentalRegistry (#201, #202)
 const DEFAULT_POOL = {
   poolId: '42',
   price: '1',
   duration: '604800', // 7 days
   operatorFeeBps: '200', // 2%
   members: [
-    { serviceId: '101', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '3', name: 'Rare Art Collection' },
-    { serviceId: '201', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '2', name: 'Luxury Hotel Space' },
-    { serviceId: '202', registry: CONTRACT_ADDRESSES.PoolRegistry, shares: '1', name: 'Premium Security Service' },
+    { serviceId: '101', registry: getRegistryForService('101'), shares: '3', name: 'Rare Art Collection' },
+    { serviceId: '201', registry: getRegistryForService('201'), shares: '2', name: 'Luxury Hotel Space' },
+    { serviceId: '202', registry: getRegistryForService('202'), shares: '1', name: 'Premium Security Service' },
   ],
 };
 
@@ -104,7 +105,7 @@ export default function App() {
             
             const members = serviceIds.map((serviceId: string) => ({
               serviceId,
-              registry: CONTRACT_ADDRESSES.PoolRegistry,
+              registry: getRegistryForService(serviceId),
               shares: String(shareMap[serviceId] || 1),
               name: SERVICE_NAMES[serviceId] || `Service #${serviceId}`,
             }));
@@ -185,8 +186,8 @@ export default function App() {
         // Continue refetching after confirmation until pool data is available
         // Check if pool data exists and matches the expected pool ID
         if (isCreateConfirmed) {
-          const data = query.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
-          if (!data || data[0] !== BigInt(DEMO_POOL.poolId)) {
+          const poolData = poolQuery.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
+          if (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId)) {
             return 2000; // Keep refetching every 2 seconds until pool data is available
           }
         }
@@ -462,7 +463,7 @@ export default function App() {
         createPollingTimeouts.current = [];
       };
     }
-  }, [createHash, addActivity, addLog, refetchPool, activities, updateActivity]);
+  }, [createHash, addActivity, addLog, refetchPool, updateActivity]);
 
   // Refetch pool after create confirmed
   useEffect(() => {
@@ -509,10 +510,14 @@ export default function App() {
   useEffect(() => {
     if (createHash && isCreateConfirming && !loggedConfirmingTx.current.has(createHash)) {
       loggedConfirmingTx.current.add(createHash);
-      const activity = activities.find(a => a.txHash === createHash);
-      if (activity) {
-        updateActivity(activity.id, { status: 'pending' });
-      }
+      // Find activity using setActivities to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === createHash);
+        if (activity) {
+          updateActivity(activity.id, { status: 'pending' });
+        }
+        return prev;
+      });
       addLog('info', 'Waiting for transaction confirmations', {
         txHash: createHash,
         status: 'pending',
@@ -565,20 +570,24 @@ export default function App() {
         }
       };
     }
-  }, [createHash, isCreateConfirming, activities, updateActivity, addLog]);
+  }, [createHash, isCreateConfirming, updateActivity, addLog]);
 
   useEffect(() => {
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
-      const activity = activities.find(a => a.txHash === createReceipt.transactionHash);
-      if (activity) {
-        updateActivity(activity.id, {
-          status: 'confirmed',
-          blockNumber: createReceipt.blockNumber,
-          gasUsed: createReceipt.gasUsed,
-        });
-      }
+      // Find activity using setActivities to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === createReceipt.transactionHash);
+        if (activity) {
+          updateActivity(activity.id, {
+            status: 'confirmed',
+            blockNumber: createReceipt.blockNumber,
+            gasUsed: createReceipt.gasUsed,
+          });
+        }
+        return prev;
+      });
       // Parse events from receipt
       const events: { name: string; args: Record<string, any> }[] = [];
       if (createReceipt.logs) {
@@ -604,14 +613,18 @@ export default function App() {
         events,
       }]);
     }
-  }, [createReceipt, activities, updateActivity]);
+  }, [createReceipt, updateActivity]);
 
   useEffect(() => {
     if (createHash && isCreateError) {
-      const activity = activities.find(a => a.txHash === createHash);
-      if (activity) {
-        updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-      }
+      // Find activity using ref to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === createHash);
+        if (activity) {
+          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
+        }
+        return prev;
+      });
       addLog('error', 'createPool transaction failed', {
         txHash: createHash,
         status: 'reverted',
@@ -619,7 +632,7 @@ export default function App() {
       // Reset demo state on error
       setDemoState('intro');
     }
-  }, [createHash, isCreateError, activities, updateActivity, addLog]);
+  }, [createHash, isCreateError, updateActivity, addLog]);
 
   // Track purchase transaction
   useEffect(() => {
@@ -660,15 +673,18 @@ export default function App() {
               gasUsed: BigInt(data.result.gasUsed || '0'),
               blockNumber: BigInt(data.result.blockNumber || '0'),
             });
-            // Update activity status
-            const activity = activities.find(a => a.txHash === purchaseHash);
-            if (activity) {
-              updateActivity(activity.id, {
-                status: 'confirmed',
-                blockNumber: BigInt(data.result.blockNumber || '0'),
-                gasUsed: BigInt(data.result.gasUsed || '0'),
-              });
-            }
+            // Update activity status (using setActivities to avoid dependency)
+            setActivities(prev => {
+              const activity = prev.find(a => a.txHash === purchaseHash);
+              if (activity) {
+                updateActivity(activity.id, {
+                  status: 'confirmed',
+                  blockNumber: BigInt(data.result.blockNumber || '0'),
+                  gasUsed: BigInt(data.result.gasUsed || '0'),
+                });
+              }
+              return prev;
+            });
             // Update state to result - this will trigger the useEffect that sets demoState to 'result'
             setDemoState('result');
             return true; // Found receipt
@@ -704,34 +720,42 @@ export default function App() {
         purchasePollingTimeouts.current = [];
       };
     }
-  }, [purchaseHash, addActivity, addLog, activities, updateActivity, setDemoState]);
+  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState]);
 
   useEffect(() => {
     if (purchaseHash && isPurchaseConfirming && !loggedConfirmingTx.current.has(purchaseHash)) {
       loggedConfirmingTx.current.add(purchaseHash);
-      const activity = activities.find(a => a.txHash === purchaseHash);
-      if (activity) {
-        updateActivity(activity.id, { status: 'pending' });
-      }
+      // Find activity using setActivities to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === purchaseHash);
+        if (activity) {
+          updateActivity(activity.id, { status: 'pending' });
+        }
+        return prev;
+      });
       addLog('info', 'Waiting for transaction confirmations', {
         txHash: purchaseHash,
         status: 'pending',
       });
     }
-  }, [purchaseHash, isPurchaseConfirming, activities, updateActivity, addLog]);
+  }, [purchaseHash, isPurchaseConfirming, updateActivity, addLog]);
 
   useEffect(() => {
     if (purchaseReceipt && !loggedEventTx.current.has(purchaseReceipt.transactionHash)) {
       loggedEventTx.current.add(purchaseReceipt.transactionHash);
       
-      const activity = activities.find(a => a.txHash === purchaseReceipt.transactionHash);
-      if (activity) {
-        updateActivity(activity.id, {
-          status: 'confirmed',
-          blockNumber: purchaseReceipt.blockNumber,
-          gasUsed: purchaseReceipt.gasUsed,
-        });
-      }
+      // Find activity using setActivities to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === purchaseReceipt.transactionHash);
+        if (activity) {
+          updateActivity(activity.id, {
+            status: 'confirmed',
+            blockNumber: purchaseReceipt.blockNumber,
+            gasUsed: purchaseReceipt.gasUsed,
+          });
+        }
+        return prev;
+      });
       addLog('success', 'purchasePool transaction confirmed', {
         txHash: purchaseReceipt.transactionHash,
         status: 'confirmed',
@@ -763,20 +787,24 @@ export default function App() {
         events,
       }]);
     }
-  }, [purchaseReceipt, activities, updateActivity, addLog]);
+  }, [purchaseReceipt, updateActivity, addLog]);
 
   useEffect(() => {
     if (purchaseHash && isPurchaseError) {
-      const activity = activities.find(a => a.txHash === purchaseHash);
-      if (activity) {
-        updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-      }
+      // Find activity using setActivities to avoid dependency on activities array
+      setActivities(prev => {
+        const activity = prev.find(a => a.txHash === purchaseHash);
+        if (activity) {
+          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
+        }
+        return prev;
+      });
       addLog('error', 'purchasePool transaction failed', {
         txHash: purchaseHash,
         status: 'reverted',
       });
     }
-  }, [purchaseHash, isPurchaseError, activities, updateActivity, addLog]);
+  }, [purchaseHash, isPurchaseError, updateActivity, addLog]);
 
   const [shouldAutoPurchase, setShouldAutoPurchase] = useState(false);
 
