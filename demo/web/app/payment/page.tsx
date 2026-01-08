@@ -83,6 +83,7 @@ export default function App() {
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
   const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const purchaseReceiptFound = useRef<Set<string>>(new Set()); // Track which purchase hashes have been confirmed
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
