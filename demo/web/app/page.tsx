@@ -65,6 +65,27 @@ export default function HomePage() {
                     </div>
                 </div>
 
+        {/* Quick Start Section */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 mb-12 max-w-3xl mx-auto">
+          <h3 className="text-xl font-semibold text-white mb-3">⚡ Quick Start</h3>
+          <p className="text-white/90 text-sm mb-4">
+            First time using this demo? You'll need to deploy the contract once:
+          </p>
+          <div className="bg-white/20 rounded-lg p-4 space-y-2 text-sm">
+            <div className="flex items-center gap-2 text-white/90">
+              <span className="font-mono bg-white/20 px-2 py-1 rounded">make anvil-free</span>
+              <span>→ Start local blockchain</span>
+            </div>
+            <div className="flex items-center gap-2 text-white/90">
+              <span className="font-mono bg-white/20 px-2 py-1 rounded">make deploy-local</span>
+              <span>→ Deploy contract (one-time)</span>
+            </div>
+          </div>
+          <p className="text-white/70 text-xs mt-3">
+            After deployment, refresh the page and you're ready to go!
+          </p>
+        </div>
+
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">

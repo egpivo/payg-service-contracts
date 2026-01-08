@@ -1013,27 +1013,81 @@ export default function App() {
     );
   }
 
-  // Show contract deployment error if contract doesn't exist
+  // Show friendly setup guide if contract doesn't exist (first-time setup)
   if (mounted && isConnected && contractCodeExists === false) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 mb-6">
-            <h2 className="text-2xl font-bold text-red-800 mb-4">⚠️ Contract Not Deployed</h2>
-            <p className="text-red-700 mb-4">
-              The PoolRegistry contract is not deployed at address <code className="bg-red-100 px-2 py-1 rounded">{CONTRACT_ADDRESSES.PoolRegistry}</code>
-            </p>
-            <div className="bg-white rounded-lg p-6 mb-4">
-              <h3 className="font-semibold text-lg mb-3">To fix this, please deploy the contract:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm">
-                <li>Make sure Anvil is running: <code className="bg-gray-100 px-2 py-1 rounded">make anvil-free</code></li>
-                <li>Deploy the contract: <code className="bg-gray-100 px-2 py-1 rounded">make deploy-local</code></li>
-                <li>Refresh this page after deployment</li>
-              </ol>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-8 mb-6 shadow-lg">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-blue-900 mb-2">🚀 First Time Setup</h2>
+              <p className="text-blue-700 text-lg">
+                This is a development demo. You need to deploy the contract once to get started.
+              </p>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> The deployment script will automatically update <code>demo/contracts.json</code> with the correct address.
+            
+            <div className="bg-white rounded-lg p-6 mb-4 shadow-md">
+              <h3 className="font-semibold text-xl mb-4 text-gray-800">Quick Setup (One-time only)</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+                    1
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 mb-1">Start local blockchain</p>
+                    <p className="text-sm text-gray-600 mb-2">Open a terminal and run:</p>
+                    <code className="block bg-gray-800 text-green-400 px-4 py-2 rounded text-sm font-mono">
+                      make anvil-free
+                    </code>
+                    <p className="text-xs text-gray-500 mt-2">Keep this terminal running</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+                    2
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 mb-1">Deploy the contract</p>
+                    <p className="text-sm text-gray-600 mb-2">Open another terminal and run:</p>
+                    <code className="block bg-gray-800 text-green-400 px-4 py-2 rounded text-sm font-mono">
+                      make deploy-local
+                    </code>
+                    <p className="text-xs text-gray-500 mt-2">This will automatically update the contract address</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
+                    3
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 mb-1">Refresh this page</p>
+                    <p className="text-sm text-gray-600">Click the button below or refresh your browser</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors"
+              >
+                🔄 Refresh Page
+              </button>
+              <Link
+                href="/"
+                className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md transition-colors"
+              >
+                ← Back to Home
+              </Link>
+            </div>
+            
+            <div className="mt-6 bg-blue-100 border border-blue-300 rounded-lg p-4">
+              <p className="text-sm text-blue-900">
+                <strong>💡 Tip:</strong> After the first deployment, you won't need to do this again unless you restart Anvil. 
+                The contract address is saved in <code className="bg-blue-200 px-1 rounded">demo/contracts.json</code>.
               </p>
             </div>
           </div>
