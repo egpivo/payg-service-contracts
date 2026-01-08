@@ -632,8 +632,10 @@ export default function App() {
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
-      // Check if transaction reverted (status === 'reverted' or status === 0)
-      const isReverted = createReceipt.status === 'reverted' || createReceipt.status === 0;
+      // Check if transaction reverted (status === 'reverted' or status === '0' or status === 0)
+      const isReverted = createReceipt.status === 'reverted' || 
+                        createReceipt.status === '0' || 
+                        (typeof createReceipt.status === 'number' && createReceipt.status === 0);
       
       if (isReverted) {
         // Transaction was confirmed but reverted
