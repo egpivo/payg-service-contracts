@@ -68,9 +68,12 @@ export default function App() {
   const loggedEventTx = useRef<Set<string>>(new Set());
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Load selected configuration from sessionStorage
-  const [DEMO_POOL, setDEMO_POOL] = useState(() => {
-    if (typeof window !== 'undefined') {
+  // Load selected configuration from sessionStorage (client-side only)
+  const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
+
+  // Load configuration from sessionStorage after mount
+  useEffect(() => {
+    if (mounted) {
       const savedConfig = sessionStorage.getItem('selectedConfig');
       if (savedConfig) {
         try {
@@ -78,7 +81,6 @@ export default function App() {
           if (config.type === 'package' || config.type === 'custom') {
             const serviceIds = config.services || [];
             // Map service IDs to members with appropriate shares
-            // For simplicity, we'll use equal shares or a simple mapping
             const shareMap: Record<string, number> = {
               '101': 3, '102': 3, // content services
               '201': 2, '203': 2, // venue services
@@ -95,21 +97,20 @@ export default function App() {
             const totalShares = members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
             const basePrice = totalShares * 0.16; // Rough price calculation
             
-            return {
+            setDEMO_POOL({
               poolId: '42',
               price: basePrice.toFixed(2),
               duration: '604800', // 7 days
               operatorFeeBps: '200', // 2%
               members,
-            };
+            });
           }
         } catch (e) {
           console.error('Failed to parse saved config:', e);
         }
       }
     }
-    return DEFAULT_POOL;
-  });
+  }, [mounted]);
 
   // Helper to add log entry
   const addLog = useCallback((level: LogLevel, msg: string, data?: {
