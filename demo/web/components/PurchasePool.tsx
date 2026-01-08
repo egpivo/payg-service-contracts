@@ -5,7 +5,7 @@ import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 
 import { parseEther } from 'viem';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
-import { LightBulbIcon } from './Icons';
+import { LightBulbIcon, CheckIcon, MoneyIcon, ChartIcon } from './Icons';
 
 export function PurchasePool() {
   const [poolId, setPoolId] = useState('');
@@ -194,8 +194,21 @@ export function PurchasePool() {
           <div className="status status-success" style={{ marginTop: '1rem' }}>
             Pool purchased successfully! Transaction: {hash?.slice(0, 10)}...
             <br />
-            <small style={{ display: 'block', marginTop: '0.5rem' }}>
-              ✅ Access granted • 💰 Revenue split executed atomically • 📊 Check &quot;Inspect Pool&quot; to see details
+            <small style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckIcon className="w-4 h-4" />
+                Access granted
+              </span>
+              <span>•</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <MoneyIcon className="w-4 h-4" />
+                Revenue split executed atomically
+              </span>
+              <span>•</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <ChartIcon className="w-4 h-4" />
+                Check &quot;Inspect Pool&quot; to see details
+              </span>
             </small>
           </div>
         )}

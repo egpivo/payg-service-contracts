@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { decodeEventLog, Abi } from 'viem';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
+import { SparklesIcon, MoneyIcon, ClipboardIcon } from './Icons';
 
 export interface EventLog {
   action: 'CreatePool' | 'PurchasePool';
@@ -38,11 +39,11 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
   const getActionIcon = (action: string) => {
     switch (action) {
       case 'CreatePool':
-        return '✨';
+        return <SparklesIcon className="w-5 h-5" />;
       case 'PurchasePool':
-        return '💰';
+        return <MoneyIcon className="w-5 h-5" />;
       default:
-        return '📋';
+        return <ClipboardIcon className="w-5 h-5" />;
     }
   };
 
@@ -61,21 +62,21 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
     const summaries: string[] = [];
     
     events.forEach(event => {
-      switch (event.name) {
-        case 'PoolCreated':
+    switch (event.name) {
+      case 'PoolCreated':
           summaries.push(`Pool #${event.args.poolId} created`);
           break;
         case 'PoolPurchased':
           summaries.push(`${formatAmount(event.args.required)} ETH purchased`);
           break;
-        case 'MemberAdded':
-          const serviceNames: Record<string, string> = {
+      case 'MemberAdded':
+        const serviceNames: Record<string, string> = {
             '101': 'Rare Art Collection',
             '201': 'Luxury Hotel Space',
             '202': 'Premium Security',
-          };
-          const serviceIdStr = String(event.args.serviceId);
-          const serviceName = serviceNames[serviceIdStr] || `Service #${serviceIdStr}`;
+        };
+        const serviceIdStr = String(event.args.serviceId);
+        const serviceName = serviceNames[serviceIdStr] || `Service #${serviceIdStr}`;
           summaries.push(`${serviceName} added (${event.args.shares} shares)`);
           break;
       }
@@ -140,21 +141,21 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
                     <div className="flex items-center gap-2 text-xs">
                       <code className="bg-[#f5f5f5] px-2 py-1 rounded font-mono text-[#1a1a1a]">
                         {log.txHash}
-                      </code>
-                      {explorerUrl && (
-                        <a
-                          href={`${explorerUrl}/tx/${log.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                    </code>
+                    {explorerUrl && (
+                      <a
+                        href={`${explorerUrl}/tx/${log.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                           className="text-[#667eea] hover:text-[#5568d3] underline"
-                        >
+                      >
                           View in Explorer →
-                        </a>
-                      )}
-                    </div>
+                      </a>
+                    )}
+                  </div>
                     
                     {log.events.length > 0 && (
-                      <div>
+                    <div>
                         <div className="text-xs font-semibold text-[#666666] mb-2">Events ({log.events.length}):</div>
                         <div className="space-y-2">
                           {log.events.map((event, eventIndex) => (
@@ -241,21 +242,21 @@ export function EventLogPanel({ logs, explorerUrl }: EventLogPanelProps) {
                                     <div className="flex justify-between">
                                       <span>Amount:</span>
                                       <span className="font-semibold">{formatAmount(event.args.amount)} ETH</span>
-                                    </div>
+                    </div>
                                   </>
                                 )}
                                 {!['PoolCreated', 'MemberAdded', 'PoolPurchased', 'Withdrawn'].includes(event.name) && (
                                   <pre className="text-xs font-mono bg-white p-2 rounded overflow-auto">
                                     {JSON.stringify(event.args, null, 2)}
                                   </pre>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
                 </div>
               )}
             </div>

@@ -1216,12 +1216,8 @@ export default function App() {
                     {DEMO_POOL.members.map((member: PoolMember, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-[#f8f9fa] rounded-lg">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">
-                            {member.serviceId === '101' ? '🎨' : 
-                             member.serviceId === '102' ? '📜' :
-                             member.serviceId === '201' ? '🏨' :
-                             member.serviceId === '202' ? '🔒' :
-                             member.serviceId === '203' ? '🎭' : '📦'}
+                          <span className="text-[#667eea]">
+                            {getServiceIcon(member.serviceId, "w-6 h-6")}
                           </span>
                           <div>
                             <div className="font-semibold text-[#1a1a1a]">{member.name}</div>

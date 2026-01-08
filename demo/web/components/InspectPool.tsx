@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
-import { LockIcon, LightBulbIcon } from './Icons';
+import { LockIcon, LightBulbIcon, UnlockIcon, MoneyIcon } from './Icons';
 
 export function InspectPool() {
   const { address } = useAccount();
@@ -316,7 +316,19 @@ export function InspectPool() {
       {userAddress && (
         <div style={{ marginTop: '1.5rem' }}>
           <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>
-            {poolId ? '🔓 User Access' : '💰 Earnings'}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {poolId ? (
+                <>
+                  <UnlockIcon className="w-5 h-5" />
+                  User Access
+                </>
+              ) : (
+                <>
+                  <MoneyIcon className="w-5 h-5" />
+                  Earnings
+                </>
+              )}
+            </span>
           </h3>
           <ul className="item-list">
             {poolId && accessExpiry !== undefined && accessExpiry !== null && (
