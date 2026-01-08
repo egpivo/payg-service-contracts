@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
 import { useWriteContract } from 'wagmi';
 import { parseEther, decodeEventLog, Abi } from 'viem';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { InfoCard } from '@/components/InfoCard';
 import { FlowStep } from '@/components/FlowStep';
@@ -21,8 +23,24 @@ import { DemoBadge } from '@/components/DemoBadge';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
 
-// Pre-configured Private Gallery Access Demo
-const DEMO_POOL = {
+// Service name mapping
+const SERVICE_NAMES: Record<string, string> = {
+  '101': 'Rare Art Collection',
+  '102': 'Historical Documents',
+  '201': 'Luxury Hotel Space',
+  '202': 'Premium Security Service',
+  '203': 'Presentation Services',
+};
+
+interface PoolMember {
+  serviceId: string;
+  registry: string;
+  shares: string;
+  name: string;
+}
+
+// Default pool configuration
+const DEFAULT_POOL = {
   poolId: '42',
   price: '1',
   duration: '604800', // 7 days
@@ -37,6 +55,7 @@ const DEMO_POOL = {
 type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result';
 
 export default function App() {
+  const router = useRouter();
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -48,6 +67,49 @@ export default function App() {
   const loggedConfirmingTx = useRef<Set<string>>(new Set());
   const loggedEventTx = useRef<Set<string>>(new Set());
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Load selected configuration from sessionStorage
+  const [DEMO_POOL, setDEMO_POOL] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedConfig = sessionStorage.getItem('selectedConfig');
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig);
+          if (config.type === 'package' || config.type === 'custom') {
+            const serviceIds = config.services || [];
+            // Map service IDs to members with appropriate shares
+            // For simplicity, we'll use equal shares or a simple mapping
+            const shareMap: Record<string, number> = {
+              '101': 3, '102': 3, // content services
+              '201': 2, '203': 2, // venue services
+              '202': 1, // security services
+            };
+            
+            const members = serviceIds.map((serviceId: string) => ({
+              serviceId,
+              registry: CONTRACT_ADDRESSES.PoolRegistry,
+              shares: String(shareMap[serviceId] || 1),
+              name: SERVICE_NAMES[serviceId] || `Service #${serviceId}`,
+            }));
+
+            const totalShares = members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
+            const basePrice = totalShares * 0.16; // Rough price calculation
+            
+            return {
+              poolId: '42',
+              price: basePrice.toFixed(2),
+              duration: '604800', // 7 days
+              operatorFeeBps: '200', // 2%
+              members,
+            };
+          }
+        } catch (e) {
+          console.error('Failed to parse saved config:', e);
+        }
+      }
+    }
+    return DEFAULT_POOL;
+  });
 
   // Helper to add log entry
   const addLog = useCallback((level: LogLevel, msg: string, data?: {
@@ -689,9 +751,9 @@ export default function App() {
       addLog('info', 'Requesting wallet signature for createPool');
       setShouldAutoPurchase(true);
       setDemoState('creating');
-      const serviceIds = DEMO_POOL.members.map(m => BigInt(m.serviceId));
-      const registries = DEMO_POOL.members.map(m => m.registry as `0x${string}`);
-      const shares = DEMO_POOL.members.map(m => BigInt(m.shares));
+      const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
+      const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
+      const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
 
       try {
         await writeCreate({
@@ -728,7 +790,7 @@ export default function App() {
     const operatorFee = price * (operatorFeeBps / 10000);
     const netRevenue = price - operatorFee;
     
-    const totalShares = DEMO_POOL.members.reduce((sum, m) => sum + parseInt(m.shares), 0);
+    const totalShares = DEMO_POOL.members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
     const contentShares = parseInt(DEMO_POOL.members[0].shares); // Rare Art Collection: 3 shares
     const venueShares = parseInt(DEMO_POOL.members[1].shares); // Luxury Hotel Space: 2 shares
     const securityShares = parseInt(DEMO_POOL.members[2].shares); // Premium Security Service: 1 share
@@ -766,15 +828,23 @@ export default function App() {
       <div className="max-w-7xl mx-auto">
         {/* Wallet Connection Section */}
         <section className="bg-white rounded-lg p-6 mb-8 flex items-center justify-between border border-[#e0e0e0]">
-          <div>
-            {isConnected ? (
-              <div>
-                <span className="text-[#666666] text-[0.85rem]">Connected:</span>
-                <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
-              </div>
-            ) : (
-              <span className="text-[#666666]">Not connected</span>
-            )}
+          <div className="flex items-center gap-4">
+            <div>
+              {isConnected ? (
+                <div>
+                  <span className="text-[#666666] text-[0.85rem]">Connected:</span>
+                  <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                </div>
+              ) : (
+                <span className="text-[#666666]">Not connected</span>
+              )}
+            </div>
+            <Link
+              href="/select"
+              className="text-[#667eea] hover:text-[#5568d3] font-semibold text-sm underline"
+            >
+              ← Select Services
+            </Link>
           </div>
           <div>
             <WalletButton />
