@@ -755,6 +755,14 @@ export default function App() {
             ));
             // Mark receipt as found first to prevent any polling from restarting
             purchaseReceiptFound.current.add(purchaseHash);
+            
+            // CRITICAL: Mark purchase as completed - this flag is NEVER reset
+            purchaseCompletedRef.current = true;
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('purchaseCompleted', 'true');
+              sessionStorage.setItem('demoState', 'result');
+            }
+            
             // Clear all polling timeouts
             purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
             purchasePollingTimeouts.current = [];
