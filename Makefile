@@ -1,4 +1,4 @@
-.PHONY: help install compile test coverage clean clean-all foundry-install openzeppelin-install test-verbose test-gas web-install web-dev web-build web-start web-clean
+.PHONY: help install compile test coverage clean clean-all foundry-install openzeppelin-install test-verbose test-gas web-install web-dev web-build web-start web-clean anvil anvil-free anvil-restart deploy-local demo
 
 # Default target
 help:
@@ -21,6 +21,14 @@ help:
 	@echo "  make web-build            - Build Web UI for production"
 	@echo "  make web-start            - Start production Web UI server"
 	@echo "  make web-clean            - Clean Web UI node_modules and build artifacts"
+	@echo ""
+	@echo "Anvil targets:"
+	@echo "  make anvil                - Start Anvil with default settings"
+	@echo "  make anvil-free           - Start Anvil with zero gas fees and fast blocks (0.5s)"
+	@echo "  make anvil-restart        - Restart Anvil (kills existing process first)"
+	@echo ""
+	@echo "Demo targets:"
+	@echo "  make demo                 - Start complete demo environment (Anvil + Deploy + Web UI)"
 
 # Install Foundry and dependencies
 install: foundry-install openzeppelin-install
@@ -120,3 +128,39 @@ web-clean:
 	@echo "Cleaning Web UI node_modules and build artifacts..."
 	@cd demo/web && rm -rf node_modules .next out package-lock.json
 	@echo "Web UI cleaned!"
+
+# Start Anvil local node (with default gas settings)
+anvil:
+	@echo "Starting Anvil local blockchain node..."
+	@echo "RPC URL: http://localhost:8545"
+	@echo "Chain ID: 31337"
+	@anvil
+
+# Start Anvil local node with zero gas fees (for development)
+anvil-free:
+	@echo "Starting Anvil local blockchain node with zero gas fees and fast blocks..."
+	@echo "RPC URL: http://localhost:8545"
+	@echo "Chain ID: 31337"
+	@echo "Gas Price: 0 (free transactions)"
+	@echo "Block Time: 0.5 seconds (very fast blocks)"
+	@anvil --base-fee 0 --gas-price 0 --block-time 0.5
+
+# Restart Anvil with optimized settings (kills existing process first)
+anvil-restart:
+	@echo "Restarting Anvil with optimized settings..."
+	@./scripts/restart-anvil.sh
+
+# Deploy contracts to local Anvil network
+deploy-local:
+	@echo "Deploying contracts to local Anvil network..."
+	@./scripts/deploy-local.sh
+
+# Start complete demo environment: Anvil + Deploy + Web UI
+demo:
+	@echo "Starting complete demo environment..."
+	@echo "This will:"
+	@echo "  1. Start Anvil (if not running)"
+	@echo "  2. Deploy contracts (if needed)"
+	@echo "  3. Start Next.js dev server"
+	@echo ""
+	@./scripts/start-demo.sh
