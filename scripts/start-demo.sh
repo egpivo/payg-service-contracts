@@ -22,7 +22,8 @@ if lsof -i :8545 > /dev/null 2>&1; then
 else
     echo -e "${BLUE}1. Starting Anvil...${NC}"
     # Start Anvil in background with zero gas fees
-    anvil --base-fee 0 --gas-price 0 --block-time 0.5 > /tmp/anvil.log 2>&1 &
+    # Use nohup to ensure it keeps running even if terminal closes
+    nohup anvil --base-fee 0 --gas-price 0 --block-time 0.5 > /tmp/anvil.log 2>&1 &
     ANVIL_PID=$!
     echo "   Anvil started (PID: $ANVIL_PID)"
     echo "   Logs: /tmp/anvil.log"
@@ -42,6 +43,9 @@ else
         sleep 1
     done
     ANVIL_RUNNING=false
+    
+    # Set up cleanup trap to kill Anvil when script exits (if we started it)
+    trap "echo ''; echo 'Stopping Anvil (PID: $ANVIL_PID)...'; kill $ANVIL_PID 2>/dev/null || true; echo 'Demo stopped.'" EXIT INT TERM
 fi
 
 echo ""
