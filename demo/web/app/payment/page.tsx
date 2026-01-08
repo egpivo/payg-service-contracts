@@ -870,8 +870,13 @@ export default function App() {
         txHash: purchaseHash,
         status: 'reverted',
       });
+      // Reset to 'created' state so user can retry purchase
+      // But only if we're still in 'purchasing' state (not already in 'result')
+      if (demoState === 'purchasing') {
+        setDemoState('created');
+      }
     }
-  }, [purchaseHash, isPurchaseError, updateActivity, addLog]);
+  }, [purchaseHash, isPurchaseError, updateActivity, addLog, demoState]);
 
   const [shouldAutoPurchase, setShouldAutoPurchase] = useState(false);
 
