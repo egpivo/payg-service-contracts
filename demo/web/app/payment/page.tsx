@@ -848,7 +848,7 @@ export default function App() {
         events,
       }]);
     }
-  }, [purchaseReceipt, updateActivity, addLog]);
+  }, [purchaseReceipt, updateActivity, addLog, demoState]);
 
   useEffect(() => {
     if (purchaseHash && isPurchaseError) {
