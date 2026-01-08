@@ -1,6 +1,6 @@
 'use client';
 
-import { useSwitchChain } from 'wagmi';
+import { useSwitchChain, useAccount } from 'wagmi';
 import { useChainId } from 'wagmi';
 
 interface NetworkSwitchButtonProps {
@@ -11,8 +11,15 @@ interface NetworkSwitchButtonProps {
 export function NetworkSwitchButton({ targetChainId, targetChainName = 'Localhost 8545' }: NetworkSwitchButtonProps) {
   const { switchChain } = useSwitchChain();
   const chainId = useChainId();
+  const { isConnected } = useAccount();
 
-  if (chainId === targetChainId) {
+  // Only show if wallet is connected and chainId doesn't match
+  // Also allow undefined chainId (not connected) to pass through
+  // Allow localhost networks (1337 and 31337 are both valid for local development)
+  const isLocalhost = chainId === 1337 || chainId === 31337;
+  const isTargetLocalhost = targetChainId === 1337 || targetChainId === 31337;
+  
+  if (!isConnected || !chainId || chainId === targetChainId || (isLocalhost && isTargetLocalhost)) {
     return null;
   }
 

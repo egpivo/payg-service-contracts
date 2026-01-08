@@ -910,8 +910,8 @@ export default function App() {
           </div>
         </section>
 
-        {/* Network Switch Warning */}
-        {mounted && isConnected && (
+        {/* Network Switch Warning - Only show if not on localhost networks */}
+        {mounted && isConnected && chainId && chainId !== 1337 && chainId !== 31337 && (
           <NetworkSwitchButton targetChainId={31337} targetChainName="Localhost 8545" />
         )}
 
