@@ -172,8 +172,10 @@ export default function App() {
 
   // Check if pool already exists (only refetch after tx confirmed or on mount)
   // Don't refetch if we're in result state (purchase completed)
+  // Also don't refetch if purchase was confirmed (even if state hasn't updated yet)
   const shouldRefetchPool = mounted && isConnected && 
     (demoState !== 'result' && demoState !== 'purchased') &&
+    !(purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) &&
     (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro' || demoState === 'creating' || demoState === 'created' || demoState === 'purchasing');
   const poolQuery = useReadContract({
     address: CONTRACT_ADDRESSES.PoolRegistry,
