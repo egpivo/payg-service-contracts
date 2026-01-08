@@ -274,8 +274,9 @@ export default function App() {
 
   useEffect(() => {
     // Don't run this effect if we're already in 'result' or 'purchased' state
-    // This prevents the state from being reset after purchase completes
-    if (demoState === 'result' || demoState === 'purchased') {
+    // Also don't run if we're in 'purchasing' state - let purchase confirmation handle state transitions
+    // This prevents the state from being reset after purchase completes or during purchase
+    if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing') {
       return;
     }
     
