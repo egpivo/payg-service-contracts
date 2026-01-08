@@ -907,10 +907,15 @@ export default function App() {
   }, [demoState]);
 
   useEffect(() => {
-    if (isPurchaseConfirmed) {
+    if (isPurchaseConfirmed && purchaseHash && demoState !== 'result') {
+      // Mark this purchase hash as confirmed
+      purchaseReceiptFound.current.add(purchaseHash);
+      // Clear all purchase polling timeouts when confirmed via wagmi
+      purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      purchasePollingTimeouts.current = [];
       setDemoState('result');
     }
-  }, [isPurchaseConfirmed]);
+  }, [isPurchaseConfirmed, purchaseHash, demoState]);
 
   // Auto-run flow: check if pool exists, create if needed, then purchase
   const handleStartDemo = useCallback(async () => {
