@@ -85,6 +85,7 @@ export default function App() {
   const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchaseReceiptFound = useRef<Set<string>>(new Set()); // Track which purchase hashes have been confirmed
+  const purchaseCompletedRef = useRef<boolean>(false); // Track if purchase has been completed - NEVER reset this
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
@@ -274,6 +275,11 @@ export default function App() {
   }, [mounted, isConnected, addLog, demoState]);
 
   useEffect(() => {
+    // CRITICAL: Never run this effect if purchase was completed
+    if (purchaseCompletedRef.current) {
+      return;
+    }
+    
     // Don't run this effect if we're already in 'result' or 'purchased' state
     // Also don't run if we're in 'purchasing' state - let purchase confirmation handle state transitions
     // Also don't run if purchase was confirmed (even if state hasn't updated yet)
@@ -830,6 +836,13 @@ export default function App() {
       // Mark receipt as found
       purchaseReceiptFound.current.add(purchaseReceipt.transactionHash);
       
+      // CRITICAL: Mark purchase as completed - this flag is NEVER reset
+      purchaseCompletedRef.current = true;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('purchaseCompleted', 'true');
+        sessionStorage.setItem('demoState', 'result');
+      }
+      
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
         act.txHash === purchaseReceipt.transactionHash 
@@ -973,6 +986,14 @@ export default function App() {
     if (isPurchaseConfirmed && purchaseHash) {
       // Mark this purchase hash as confirmed
       purchaseReceiptFound.current.add(purchaseHash);
+      
+      // CRITICAL: Mark purchase as completed - this flag is NEVER reset
+      purchaseCompletedRef.current = true;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('purchaseCompleted', 'true');
+        sessionStorage.setItem('demoState', 'result');
+      }
+      
       // Clear all purchase polling timeouts when confirmed via wagmi
       purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
       purchasePollingTimeouts.current = [];
