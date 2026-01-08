@@ -12,14 +12,67 @@ echo ""
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Check if Anvil is already running
+# Cleanup function to stop existing services
+cleanup_existing_services() {
+    echo -e "${BLUE}0. Cleaning up existing services...${NC}"
+    
+    # Stop existing Anvil processes
+    ANVIL_PIDS=$(lsof -ti :8545 2>/dev/null || echo "")
+    if [ -n "$ANVIL_PIDS" ]; then
+        echo "   Stopping existing Anvil processes on port 8545..."
+        echo "$ANVIL_PIDS" | xargs kill -9 2>/dev/null || true
+        sleep 1
+        # Double check and force kill if still running
+        if lsof -ti :8545 > /dev/null 2>&1; then
+            echo "   Force stopping remaining Anvil processes..."
+            lsof -ti :8545 | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+        echo -e "   ${GREEN}✓ Anvil processes stopped${NC}"
+    else
+        echo "   No existing Anvil processes found"
+    fi
+    
+    # Stop existing Next.js dev servers
+    NEXTJS_PIDS=$(lsof -ti :3000 2>/dev/null || echo "")
+    if [ -n "$NEXTJS_PIDS" ]; then
+        echo "   Stopping existing Next.js dev servers on port 3000..."
+        echo "$NEXTJS_PIDS" | xargs kill -9 2>/dev/null || true
+        sleep 1
+        # Double check and force kill if still running
+        if lsof -ti :3000 > /dev/null 2>&1; then
+            echo "   Force stopping remaining Next.js processes..."
+            lsof -ti :3000 | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+        echo -e "   ${GREEN}✓ Next.js processes stopped${NC}"
+    else
+        echo "   No existing Next.js processes found"
+    fi
+    
+    echo ""
+}
+
+# Always cleanup existing services before starting
+cleanup_existing_services
+
+# Check if Anvil is already running (should be false after cleanup, but check anyway)
 if lsof -i :8545 > /dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  Anvil is already running on port 8545${NC}"
-    echo "   Using existing Anvil instance..."
-    ANVIL_RUNNING=true
-else
+    echo -e "${RED}⚠️  Warning: Port 8545 is still in use after cleanup${NC}"
+    echo "   Attempting to force stop..."
+    lsof -ti :8545 | xargs kill -9 2>/dev/null || true
+    sleep 2
+    if lsof -i :8545 > /dev/null 2>&1; then
+        echo -e "${RED}Error: Could not free port 8545. Please manually stop the process and try again.${NC}"
+        exit 1
+    fi
+fi
+
+# Start Anvil
+if true; then
     echo -e "${BLUE}1. Starting Anvil...${NC}"
     # Start Anvil in background with zero gas fees
     # Use nohup to ensure it keeps running even if terminal closes
@@ -44,8 +97,8 @@ else
     done
     ANVIL_RUNNING=false
     
-    # Set up cleanup trap to kill Anvil when script exits (if we started it)
-    trap "echo ''; echo 'Stopping Anvil (PID: $ANVIL_PID)...'; kill $ANVIL_PID 2>/dev/null || true; echo 'Demo stopped.'" EXIT INT TERM
+    # Set up cleanup trap to kill Anvil and Next.js when script exits (if we started them)
+    trap "echo ''; echo 'Stopping services...'; kill $ANVIL_PID 2>/dev/null || true; lsof -ti :3000 | xargs kill -9 2>/dev/null || true; echo 'Demo stopped.'" EXIT INT TERM
 fi
 
 echo ""
