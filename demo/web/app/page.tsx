@@ -200,7 +200,14 @@ export default function App() {
   useEffect(() => {
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
-        setDemoState('created');
+        // Check if we should go directly to checkout
+        const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
+        if (goToCheckout) {
+          setDemoState('created'); // Go to purchase stage
+          sessionStorage.removeItem('goToCheckout'); // Clear flag
+        } else {
+          setDemoState('created');
+        }
         addLog('info', 'Pool already exists, skipping creation', {
           poolState: {
             exists: true,
@@ -217,9 +224,53 @@ export default function App() {
             totalShares: poolData[3],
           },
         });
+        // Check if we should go directly to checkout after creation
+        const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
+        if (goToCheckout) {
+          setDemoState('created'); // Go to purchase stage
+          sessionStorage.removeItem('goToCheckout'); // Clear flag
+        }
       }
     }
   }, [poolData, demoState, isCreateConfirmed, addLog]);
+
+  // Auto-create pool if coming from selection page and pool doesn't exist
+  useEffect(() => {
+    if (mounted && isConnected && demoState === 'intro') {
+      const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
+      const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
+      
+      if (goToCheckout && hasSelectedConfig && poolData && poolData[0] !== BigInt(DEMO_POOL.poolId)) {
+        // Pool doesn't exist, auto-create it
+        if (!isCreating && !createHash) {
+          setDemoState('creating');
+          const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
+          const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
+          const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+
+          try {
+            writeCreate({
+              address: CONTRACT_ADDRESSES.PoolRegistry,
+              abi: PoolRegistryABI,
+              functionName: 'createPool',
+              args: [
+                BigInt(DEMO_POOL.poolId),
+                serviceIds,
+                registries,
+                shares,
+                parseEther(DEMO_POOL.price),
+                BigInt(DEMO_POOL.duration),
+                parseInt(DEMO_POOL.operatorFeeBps),
+              ],
+            });
+          } catch (error: any) {
+            addLog('error', `Failed to send transaction: ${error?.message || 'Unknown error'}`);
+            setDemoState('intro');
+          }
+        }
+      }
+    }
+  }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog]);
 
   // Activity tracking
   const addActivity = useCallback((activity: Omit<ActivityItem, 'id' | 'timestamp'>) => {
@@ -925,7 +976,11 @@ export default function App() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-[#667eea] mt-1 font-bold">•</span>
-                      <span>Service Providers: 3 providers (content, venue, security)</span>
+                      <span>Service Providers: {DEMO_POOL.members.length} {DEMO_POOL.members.length === 1 ? 'provider' : 'providers'}</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-[#667eea] mt-1 font-bold">•</span>
+                      <span>Selected Services: {DEMO_POOL.members.map((m: PoolMember) => m.name).join(', ')}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-[#667eea] mt-1 font-bold">•</span>
@@ -1109,10 +1164,34 @@ export default function App() {
                 )}
                 {hasAccess !== true && (
                   <>
-                <h2 className="mb-2 text-[1.75rem] font-semibold">Step 2: Purchase Gallery Access</h2>
+                <h2 className="mb-2 text-[1.75rem] font-semibold">Step 2: Purchase Package</h2>
                 <p className="text-[#666666] mb-6 text-lg">
-                  Buy complete access to content and all infrastructure for {daysDuration} days
+                  Buy complete access to your selected services for {daysDuration} days
                 </p>
+
+                {/* Selected Services Display */}
+                <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
+                  <h3 className="text-lg font-semibold mb-4 text-[#1a1a1a]">Selected Services:</h3>
+                  <div className="space-y-3">
+                    {DEMO_POOL.members.map((member: PoolMember, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-[#f8f9fa] rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">
+                            {member.serviceId === '101' ? '🎨' : 
+                             member.serviceId === '102' ? '📜' :
+                             member.serviceId === '201' ? '🏨' :
+                             member.serviceId === '202' ? '🔒' :
+                             member.serviceId === '203' ? '🎭' : '📦'}
+                          </span>
+                          <div>
+                            <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
+                            <div className="text-sm text-[#666666]">Service ID: {member.serviceId} • Shares: {member.shares}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Transaction Log */}
                 <div className="mb-6">
@@ -1122,7 +1201,7 @@ export default function App() {
                 <div className="text-center mb-8">
                   <div className="inline-block bg-[#f8f9fa] rounded-lg p-8">
                     <div className="text-[3rem] text-[#667eea] mb-2 font-bold">{DEMO_POOL.price} ETH</div>
-                    <p className="text-[#666666]">{daysDuration}-day access to 3 services</p>
+                    <p className="text-[#666666]">{daysDuration}-day access to {DEMO_POOL.members.length} {DEMO_POOL.members.length === 1 ? 'service' : 'services'}</p>
                   </div>
                 </div>
 

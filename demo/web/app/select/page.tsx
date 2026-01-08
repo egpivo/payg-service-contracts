@@ -138,8 +138,9 @@ export default function SelectPage() {
     }
 
     if (config) {
-      // Store config in sessionStorage and navigate
+      // Store config in sessionStorage and navigate to checkout
       sessionStorage.setItem('selectedConfig', JSON.stringify(config));
+      sessionStorage.setItem('goToCheckout', 'true');
       router.push('/');
     }
   };
