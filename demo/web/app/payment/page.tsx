@@ -909,7 +909,7 @@ export default function App() {
 
         {/* Tab Navigation */}
         <TabNavigation
-          demo={
+          checkout={
             <div className="max-w-4xl mx-auto">
               {/* Package Header */}
               <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
