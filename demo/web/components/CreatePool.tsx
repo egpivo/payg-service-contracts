@@ -5,7 +5,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
-import { LightBulbIcon } from './Icons';
+import { LightBulbIcon, CheckIcon } from './Icons';
 
 export function CreatePool() {
   const [poolId, setPoolId] = useState('');
@@ -275,8 +275,21 @@ export function CreatePool() {
           <div className="status status-success" style={{ marginTop: '1rem' }}>
             Pool created successfully! Transaction: {hash?.slice(0, 10)}...
             <br />
-            <small style={{ display: 'block', marginTop: '0.5rem' }}>
-              ✅ One product created • Multiple providers configured • Revenue split defined
+            <small style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckIcon className="w-4 h-4" />
+                One product created
+              </span>
+              <span>•</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckIcon className="w-4 h-4" />
+                Multiple providers configured
+              </span>
+              <span>•</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckIcon className="w-4 h-4" />
+                Revenue split defined
+              </span>
             </small>
           </div>
         )}

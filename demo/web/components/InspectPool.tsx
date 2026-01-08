@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
-import { LockIcon, LightBulbIcon, UnlockIcon, MoneyIcon } from './Icons';
+import { LockIcon, LightBulbIcon, UnlockIcon, MoneyIcon, CheckIcon, XIcon, PauseIcon } from './Icons';
 
 export function InspectPool() {
   const { address } = useAccount();
@@ -137,9 +137,14 @@ export function InspectPool() {
                 <div style={{ marginBottom: '0.25rem' }}>
                   <strong>Total Shares:</strong> {String(invariants.totalShares)} 
                   {invariants.sharesMatch ? (
-                    <span style={{ color: '#10b981', marginLeft: '0.5rem' }}>✅</span>
+                    <span style={{ color: '#10b981', marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center' }}>
+                      <CheckIcon className="w-4 h-4" />
+                    </span>
                   ) : (
-                    <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>❌ Mismatch!</span>
+                    <span style={{ color: '#ef4444', marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <XIcon className="w-4 h-4" />
+                      Mismatch!
+                    </span>
                   )}
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>
@@ -173,7 +178,19 @@ export function InspectPool() {
               </li>
               <li>
                 <strong>Status:</strong>
-                <span>{poolData[6] ? '⏸️ Paused' : '✅ Active'}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {poolData[6] ? (
+                    <>
+                      <PauseIcon className="w-4 h-4" />
+                      Paused
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="w-4 h-4" />
+                      Active
+                    </>
+                  )}
+                </span>
               </li>
               <li>
                 <strong>Purchases:</strong>
@@ -334,8 +351,18 @@ export function InspectPool() {
             {poolId && accessExpiry !== undefined && accessExpiry !== null && (
               <li>
                 <strong>Access Status:</strong>
-                <span style={{ marginLeft: '0.5rem' }}>
-                  {accessStatus.active ? '✅ Active' : '❌ ' + accessStatus.status}
+                <span style={{ marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {accessStatus.active ? (
+                    <>
+                      <CheckIcon className="w-4 h-4" />
+                      Active
+                    </>
+                  ) : (
+                    <>
+                      <XIcon className="w-4 h-4" />
+                      {accessStatus.status}
+                    </>
+                  )}
                 </span>
                 {accessStatus.timeLeft && (
                   <div style={{ marginTop: '0.25rem', fontSize: '0.9rem', color: '#666' }}>
