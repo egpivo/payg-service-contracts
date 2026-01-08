@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { WalletButton } from '@/components/WalletButton';
 import { useAccount } from 'wagmi';
@@ -8,6 +9,11 @@ import Link from 'next/link';
 export default function HomePage() {
   const router = useRouter();
   const { isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSelectServices = () => {
     router.push('/select');
@@ -36,7 +42,7 @@ export default function HomePage() {
               Pay once, access everything.
             </p>
             
-            {!isConnected && (
+            {mounted && !isConnected && (
               <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-8 max-w-2xl mx-auto">
                 <p className="text-yellow-800 font-semibold">
                   Please connect your wallet to start selecting services
@@ -46,9 +52,9 @@ export default function HomePage() {
 
             <button
               onClick={handleSelectServices}
-              disabled={!isConnected}
+              disabled={mounted && !isConnected}
               className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all shadow-lg ${
-                isConnected
+                mounted && isConnected
                   ? 'bg-white text-[#667eea] hover:bg-white/90 hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
