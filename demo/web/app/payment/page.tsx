@@ -718,19 +718,40 @@ export default function App() {
       // Check immediately and then every 2 seconds
       let checkCount = 0;
       const maxChecks = 30;
+      let foundReceipt = false; // Track if receipt was found to stop polling
       
       const startChecking = async () => {
+        // Stop if we're already in result state (transaction was confirmed via other means)
+        if (demoState === 'result' || foundReceipt) {
+          return;
+        }
+        
         const found = await checkReceipt();
+        if (found) {
+          foundReceipt = true;
+          // Clear all pending timeouts since we found the receipt
+          purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+          purchasePollingTimeouts.current = [];
+          return; // Stop polling
+        }
+        
         if (!found && checkCount < maxChecks) {
           checkCount++;
-          const timeoutId = setTimeout(startChecking, 2000);
-          purchasePollingTimeouts.current.push(timeoutId);
+          // Only schedule next check if we haven't found receipt and state hasn't changed
+          if (demoState !== 'result' && !foundReceipt) {
+            const timeoutId = setTimeout(startChecking, 2000);
+            purchasePollingTimeouts.current.push(timeoutId);
+          }
         } else if (checkCount >= maxChecks && !found) {
           addLog('warning', 'Purchase transaction still pending after 60 seconds.');
         }
       };
       
-      const initialTimeoutId = setTimeout(() => startChecking(), 1000);
+      const initialTimeoutId = setTimeout(() => {
+        if (demoState !== 'result' && !foundReceipt) {
+          startChecking();
+        }
+      }, 1000);
       purchasePollingTimeouts.current.push(initialTimeoutId);
 
       // Cleanup function to clear all pending timeouts
@@ -739,7 +760,7 @@ export default function App() {
         purchasePollingTimeouts.current = [];
       };
     }
-  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState]);
+  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState, demoState]);
 
   useEffect(() => {
     if (purchaseHash && isPurchaseConfirming && !loggedConfirmingTx.current.has(purchaseHash)) {
