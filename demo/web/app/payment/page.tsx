@@ -189,6 +189,10 @@ export default function App() {
         if (demoState === 'result' || demoState === 'purchased') {
           return false;
         }
+        // Stop refetching if purchase was confirmed (even if state hasn't updated yet)
+        if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
+          return false;
+        }
         // Keep refetching if we're waiting for confirmation OR if pool was created but data not available yet
         if (isCreateConfirming || isPurchaseConfirming) {
           return 2000;
