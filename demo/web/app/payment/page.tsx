@@ -632,6 +632,27 @@ export default function App() {
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
+      // Check if transaction reverted (status === 'reverted' or status === 0)
+      const isReverted = createReceipt.status === 'reverted' || createReceipt.status === 0;
+      
+      if (isReverted) {
+        // Transaction was confirmed but reverted
+        setActivities(prev => prev.map(act => 
+          act.txHash === createReceipt.transactionHash 
+            ? { ...act, status: 'failed' as ActivityStatus, error: 'Transaction reverted', blockNumber: createReceipt.blockNumber, gasUsed: createReceipt.gasUsed }
+            : act
+        ));
+        addLog('error', 'createPool transaction reverted', {
+          txHash: createReceipt.transactionHash,
+          status: 'reverted',
+          gasUsed: createReceipt.gasUsed,
+          blockNumber: createReceipt.blockNumber,
+        });
+        // Don't reset to intro - stay in creating state so user can see the error
+        // setDemoState('creating'); // Already in creating state
+        return; // Don't process events if reverted
+      }
+      
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
         act.txHash === createReceipt.transactionHash 
@@ -677,8 +698,9 @@ export default function App() {
         txHash: createHash,
         status: 'reverted',
       });
-      // Reset demo state on error
-      setDemoState('intro');
+      // Don't reset to intro - stay in creating state so user can see the error and retry
+      // The user can manually go back or retry
+      // setDemoState('intro'); // REMOVED - don't reset state
     }
   }, [createHash, isCreateError, updateActivity, addLog]);
 
