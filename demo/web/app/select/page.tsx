@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
 import { useAccount } from 'wagmi';
+import { getServiceIcon, CheckIcon } from '@/components/Icons';
 
 interface ServiceOption {
   id: string;
@@ -12,7 +13,6 @@ interface ServiceOption {
   description: string;
   category: 'content' | 'venue' | 'security';
   price: string;
-  icon: string;
 }
 
 interface PackageOption {
@@ -33,7 +33,6 @@ const AVAILABLE_SERVICES: ServiceOption[] = [
     description: 'Exclusive access to precious art collections and valuable artifacts',
     category: 'content',
     price: '0.5',
-    icon: '🎨',
   },
   {
     id: '102',
@@ -41,7 +40,6 @@ const AVAILABLE_SERVICES: ServiceOption[] = [
     description: 'Access to rare historical documents and manuscripts',
     category: 'content',
     price: '0.4',
-    icon: '📜',
   },
   {
     id: '201',
@@ -49,7 +47,6 @@ const AVAILABLE_SERVICES: ServiceOption[] = [
     description: 'Premium hotel spaces in major cities, rented by service providers',
     category: 'venue',
     price: '0.33',
-    icon: '🏨',
   },
   {
     id: '202',
@@ -57,7 +54,6 @@ const AVAILABLE_SERVICES: ServiceOption[] = [
     description: 'Professional security services for protecting valuable items',
     category: 'security',
     price: '0.17',
-    icon: '🔒',
   },
   {
     id: '203',
@@ -65,7 +61,6 @@ const AVAILABLE_SERVICES: ServiceOption[] = [
     description: 'Professional setup and presentation services',
     category: 'venue',
     price: '0.2',
-    icon: '🎭',
   },
 ];
 
@@ -219,14 +214,14 @@ export default function SelectPage() {
                       </div>
                       {selectedPackage === pkg.id && (
                         <div className="bg-[#667eea] text-white rounded-full w-8 h-8 flex items-center justify-center">
-                          ✓
+                          <CheckIcon className="w-5 h-5" />
                         </div>
                       )}
                     </div>
                     <div className="space-y-2 mb-4">
                       {pkg.services.map((service) => (
                         <div key={service.id} className="flex items-center gap-2 text-sm">
-                          <span className="text-xl">{service.icon}</span>
+                          <span className="text-[#667eea]">{getServiceIcon(service.id, "w-5 h-5")}</span>
                           <span className="text-[#666666]">{service.name}</span>
                         </div>
                       ))}
@@ -272,7 +267,7 @@ export default function SelectPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">{service.icon}</span>
+                            <span className="text-[#667eea]">{getServiceIcon(service.id, "w-6 h-6")}</span>
                             <div>
                               <div className="font-semibold text-[#1a1a1a]">{service.name}</div>
                               <div className="text-sm text-[#666666]">{service.description}</div>
@@ -281,8 +276,8 @@ export default function SelectPage() {
                           <div className="flex items-center gap-4">
                             <span className="font-semibold text-[#1a1a1a]">{service.price} ETH</span>
                             {customServices.includes(service.id) && (
-                              <div className="bg-[#667eea] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">
-                                ✓
+                              <div className="bg-[#667eea] text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                <CheckIcon className="w-4 h-4" />
                               </div>
                             )}
                           </div>
@@ -308,7 +303,7 @@ export default function SelectPage() {
                     {selectedServices.map((service) => (
                       <div key={service.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <span>{service.icon}</span>
+                          <span className="text-[#667eea]">{getServiceIcon(service.id, "w-5 h-5")}</span>
                           <span className="text-[#666666]">{service.name}</span>
                         </div>
                         <span className="font-semibold text-[#1a1a1a]">{service.price} ETH</span>

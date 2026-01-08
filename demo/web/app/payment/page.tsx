@@ -25,6 +25,7 @@ import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
+import { getServiceIcon, CheckIcon, LightBulbIcon } from '@/components/Icons';
 
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
@@ -1004,11 +1005,7 @@ export default function App() {
                     {DEMO_POOL.members.map((member: PoolMember, index: number) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
                         <span className="text-2xl">
-                          {member.serviceId === '101' ? '🎨' : 
-                           member.serviceId === '102' ? '📜' :
-                           member.serviceId === '201' ? '🏨' :
-                           member.serviceId === '202' ? '🔒' :
-                           member.serviceId === '203' ? '🎭' : '📦'}
+                          {getServiceIcon(member.serviceId, "w-5 h-5")}
                         </span>
                         <div>
                           <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
@@ -1178,7 +1175,10 @@ export default function App() {
                 {/* Check if already purchased */}
                 {hasAccess === true && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 font-semibold">✓ You have already purchased this pool!</p>
+                    <p className="text-green-800 font-semibold flex items-center gap-2">
+                      <CheckIcon className="w-5 h-5" />
+                      You have already purchased this pool!
+                    </p>
                     <p className="text-green-700 text-sm mt-1">You have access to all services. Proceeding to settlement view...</p>
                     <div className="mt-4">
                       <PrimaryButton 
@@ -1327,7 +1327,10 @@ export default function App() {
                   </div>
                   {(isPurchasing || isPurchaseConfirming) && (
                     <div className="text-xs text-[#999999]">
-                      💡 If MetaMask popup is open, please <strong>reject</strong> the transaction there, then click &quot;Back&quot; above.
+                      <div className="flex items-center gap-2">
+                        <LightBulbIcon className="w-4 h-4 text-[#999999]" />
+                        <span>If MetaMask popup is open, please <strong>reject</strong> the transaction there, then click &quot;Back&quot; above.</span>
+                      </div>
                     </div>
                   )}
                 </div>

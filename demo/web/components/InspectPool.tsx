@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
+import { LockIcon, LightBulbIcon } from './Icons';
 
 export function InspectPool() {
   const { address } = useAccount();
@@ -128,8 +129,8 @@ export function InspectPool() {
               borderRadius: '6px',
               borderLeft: '4px solid #0ea5e9'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🔒</span>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+                <LockIcon className="w-5 h-5" />
                 <strong style={{ fontSize: '0.95rem' }}>Protocol Invariants</strong>
               </div>
               <div style={{ fontSize: '0.85rem', color: '#555' }}>
@@ -296,7 +297,12 @@ export function InspectPool() {
                       color: '#666',
                       fontStyle: 'italic'
                     }}>
-                      💡 <strong>Remainder handling:</strong> Any rounding remainder from the split calculation goes to the first provider (deterministic tie-breaker). This ensures 100% of net revenue is distributed.
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <span style={{ marginTop: '0.2rem', flexShrink: 0 }}>
+                          <LightBulbIcon className="w-4 h-4" />
+                        </span>
+                        <span><strong>Remainder handling:</strong> Any rounding remainder from the split calculation goes to the first provider (deterministic tie-breaker). This ensures 100% of net revenue is distributed.</span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -339,8 +345,11 @@ export function InspectPool() {
               <span style={{ marginLeft: '0.5rem' }}>
                 {earnings ? `${String(Number(earnings) / 1e18)} ETH` : '0 ETH'}
               </span>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#666' }}>
-                💡 Earnings accumulate across all pools. Use <code style={{ fontSize: '0.75rem', background: '#f0f0f0', padding: '0.1rem 0.3rem' }}>withdraw()</code> to claim.
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#666', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <span style={{ marginTop: '0.1rem', flexShrink: 0 }}>
+                  <LightBulbIcon className="w-4 h-4" />
+                </span>
+                <span>Earnings accumulate across all pools. Use <code style={{ fontSize: '0.75rem', background: '#f0f0f0', padding: '0.1rem 0.3rem' }}>withdraw()</code> to claim.</span>
               </div>
             </li>
           </ul>

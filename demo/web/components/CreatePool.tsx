@@ -5,6 +5,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES } from '@/config';
+import { LightBulbIcon } from './Icons';
 
 export function CreatePool() {
   const [poolId, setPoolId] = useState('');
@@ -111,8 +112,8 @@ export function CreatePool() {
         borderRadius: '8px',
         borderLeft: '4px solid #ffc107'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>💡</span>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+          <LightBulbIcon className="w-5 h-5" />
           <strong style={{ fontSize: '0.95rem', color: '#856404' }}>Quick Start</strong>
         </div>
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#856404', lineHeight: '1.5' }}>
@@ -202,9 +203,12 @@ export function CreatePool() {
             required
             placeholder="e.g., 604800 (7 days)"
           />
-          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem' }}>
-            💡 Renewal behavior: If access is active, renewal extends from current expiry (no time lost). 
-            If expired, renewal starts from now.
+          <small style={{ display: 'flex', alignItems: 'flex-start', marginTop: '0.25rem', color: '#666', fontSize: '0.85rem', gap: '0.5rem' }}>
+            <span style={{ marginTop: '0.1rem', flexShrink: 0 }}>
+              <LightBulbIcon className="w-4 h-4" />
+            </span>
+            <span>Renewal behavior: If access is active, renewal extends from current expiry (no time lost). 
+            If expired, renewal starts from now.</span>
           </small>
         </div>
 

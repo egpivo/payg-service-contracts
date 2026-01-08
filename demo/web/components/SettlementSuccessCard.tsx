@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CheckIcon, ZapIcon, RocketIcon } from './Icons';
 
 interface SettlementSuccessCardProps {
   totalPayment: string;
@@ -118,19 +119,23 @@ export function SettlementSuccessCard({
 
         {/* Benefits Tags */}
         <div className="flex flex-wrap gap-2 justify-center">
-          <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold border border-blue-200">
-            ✓ Fully Automated
+          <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold border border-blue-200 flex items-center gap-1">
+            <CheckIcon className="w-4 h-4" />
+            Fully Automated
           </span>
-          <span className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-semibold border border-purple-200">
-            ✓ Transparent
+          <span className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-semibold border border-purple-200 flex items-center gap-1">
+            <CheckIcon className="w-4 h-4" />
+            Transparent
           </span>
           {estimatedGasSaved && (
-            <span className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-semibold border border-green-200">
-              ⚡ Gas Saved: ~{estimatedGasSaved.toFixed(6)} ETH
+            <span className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-semibold border border-green-200 flex items-center gap-1">
+              <ZapIcon className="w-4 h-4" />
+              Gas Saved: ~{estimatedGasSaved.toFixed(6)} ETH
             </span>
           )}
-          <span className="px-4 py-2 bg-orange-50 text-orange-700 rounded-full text-sm font-semibold border border-orange-200">
-            🚀 Instant Settlement
+          <span className="px-4 py-2 bg-orange-50 text-orange-700 rounded-full text-sm font-semibold border border-orange-200 flex items-center gap-1">
+            <RocketIcon className="w-4 h-4" />
+            Instant Settlement
           </span>
         </div>
       </div>
