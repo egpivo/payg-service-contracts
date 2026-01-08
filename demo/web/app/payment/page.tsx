@@ -799,6 +799,9 @@ export default function App() {
     if (purchaseReceipt && !loggedEventTx.current.has(purchaseReceipt.transactionHash)) {
       loggedEventTx.current.add(purchaseReceipt.transactionHash);
       
+      // Mark receipt as found
+      purchaseReceiptFound.current.add(purchaseReceipt.transactionHash);
+      
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
         act.txHash === purchaseReceipt.transactionHash 
@@ -811,6 +814,15 @@ export default function App() {
         gasUsed: purchaseReceipt.gasUsed,
         blockNumber: purchaseReceipt.blockNumber,
       });
+      
+      // Clear all purchase polling timeouts
+      purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      purchasePollingTimeouts.current = [];
+      
+      // Transition to result state if not already there
+      if (demoState !== 'result') {
+        setDemoState('result');
+      }
       // Parse events from receipt
       const events: { name: string; args: Record<string, any> }[] = [];
       if (purchaseReceipt.logs) {
