@@ -275,8 +275,14 @@ export default function App() {
   useEffect(() => {
     // Don't run this effect if we're already in 'result' or 'purchased' state
     // Also don't run if we're in 'purchasing' state - let purchase confirmation handle state transitions
+    // Also don't run if purchase was confirmed (even if state hasn't updated yet)
     // This prevents the state from being reset after purchase completes or during purchase
     if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing') {
+      return;
+    }
+    
+    // Don't run if purchase was confirmed (even if state hasn't updated yet)
+    if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
       return;
     }
     
@@ -328,8 +334,9 @@ export default function App() {
           sessionStorage.removeItem('goToCheckout'); // Clear flag
         }
       }
+      // Explicitly do NOT handle 'created' state here - it should only transition forward via purchase confirmation
     }
-  }, [poolData, demoState, isCreateConfirmed, addLog]);
+  }, [poolData, demoState, isCreateConfirmed, addLog, purchaseHash]);
 
   // Auto-create pool if coming from selection page and pool doesn't exist
   useEffect(() => {
