@@ -558,8 +558,19 @@ export default function App() {
               gasUsed: BigInt(data.result.gasUsed || '0'),
               blockNumber: BigInt(data.result.blockNumber || '0'),
             });
-            // Force update state
-            setTimeout(() => window.location.reload(), 1000);
+            // Trigger pool refetch to ensure data is updated before state transition
+            // The useEffect at line 264 will handle state transition when poolData updates
+            // This ensures pool data is available before moving to 'created' state
+            setTimeout(async () => {
+              if (refetchPool) {
+                try {
+                  await refetchPool();
+                } catch (error) {
+                  console.error('Error refetching pool after manual check:', error);
+                }
+              }
+            }, 1000); // Wait for block to be processed
+            return true; // Found receipt, stop polling
           }
         } catch (e) {
           // Transaction not found yet, will retry
