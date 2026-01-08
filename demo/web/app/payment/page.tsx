@@ -19,6 +19,8 @@ import { DeveloperToggle } from '@/components/DeveloperToggle';
 import { TransactionLog, TransactionLogEntry, LogLevel } from '@/components/TransactionLog';
 import { TransactionProgress } from '@/components/TransactionProgress';
 import { RevenueDistribution } from '@/components/RevenueDistribution';
+import { MoneyFlowDiagram } from '@/components/MoneyFlowDiagram';
+import { SettlementSuccessCard } from '@/components/SettlementSuccessCard';
 import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
@@ -1353,56 +1355,82 @@ export default function App() {
                   </div>
                 </DeveloperToggle>
 
-                <InfoCard variant="success" className="mb-6">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center pb-4 border-b-2 border-[#10b981]">
-                      <span className="text-xl">Total Payment:</span>
-                      <span className="text-[2rem] text-[#10b981] font-bold">{settlement.price.toFixed(2)} ETH</span>
-                    </div>
+                {/* Settlement Success Card */}
+                <div className="mb-6">
+                  <SettlementSuccessCard
+                    totalPayment={settlement.price.toFixed(4)}
+                    netRevenue={settlement.netRevenue.toFixed(4)}
+                    operatorFee={settlement.operatorFee.toFixed(4)}
+                    gasUsed={purchaseReceipt?.gasUsed}
+                  />
+                </div>
 
-                    <div className="flex justify-between items-center text-[#666666]">
-                      <span>Operator Fee ({Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%):</span>
-                      <span className="text-[#1a1a1a] font-semibold">{settlement.operatorFee.toFixed(4)} ETH</span>
-                    </div>
+                {/* Money Flow Diagram */}
+                <div className="mb-6">
+                  <MoneyFlowDiagram
+                    totalPayment={settlement.price}
+                    operatorFee={settlement.operatorFee}
+                    netRevenue={settlement.netRevenue}
+                    providers={settlement.memberRevenues.map((mr, index) => {
+                      const colors = [
+                        '#667eea', // Purple
+                        '#3b82f6', // Blue
+                        '#10b981', // Green
+                        '#f59e0b', // Amber
+                        '#ef4444', // Red
+                        '#8b5cf6', // Violet
+                      ];
+                      return {
+                        name: mr.member.name,
+                        amount: mr.revenue,
+                        percentage: mr.percentage,
+                        color: colors[index % colors.length],
+                      };
+                    })}
+                  />
+                </div>
 
-                    <RevenueDistribution
-                      totalPayment={settlement.price.toFixed(4)}
-                      operatorFee={settlement.operatorFee.toFixed(4)}
-                      netRevenue={settlement.netRevenue.toFixed(4)}
-                      providers={settlement.memberRevenues.map((mr, index) => {
-                        // Color palette for different providers
-                        const colors = [
-                          'bg-[#667eea]', // Purple
-                          'bg-[#3b82f6]', // Blue
-                          'bg-[#10b981]', // Green
-                          'bg-[#f59e0b]', // Amber
-                          'bg-[#ef4444]', // Red
-                          'bg-[#8b5cf6]', // Violet
-                        ];
-                        return {
-                          name: mr.member.name,
-                          address: mr.member.registry || '0x0000000000000000000000000000000000000000',
-                          amount: mr.revenue.toFixed(4),
-                          percentage: Number(mr.percentage.toFixed(1)),
-                          color: colors[index % colors.length],
-                        };
-                      })}
-                    />
-                    {userEarnings !== undefined && (
-                      <div className="mt-4 pt-4 border-t border-[#e0e0e0]">
-                        <div className="text-sm text-[#666666]">
-                          <strong>Your Earnings Ledger:</strong>{' '}
-                          <span className="font-semibold text-[#1a1a1a]">
-                            {userEarnings ? `${String(Number(userEarnings) / 1e18)} ETH` : '0 ETH'}
-                          </span>
-                          <div className="text-xs text-[#999999] mt-1 italic">
-                            Earnings accumulate across all pools. Use withdraw() to claim.
-                          </div>
-                        </div>
+                {/* Detailed Revenue Distribution (for reference) */}
+                <div className="mb-6">
+                  <RevenueDistribution
+                    totalPayment={settlement.price.toFixed(4)}
+                    operatorFee={settlement.operatorFee.toFixed(4)}
+                    netRevenue={settlement.netRevenue.toFixed(4)}
+                    providers={settlement.memberRevenues.map((mr, index) => {
+                      // Color palette for different providers
+                      const colors = [
+                        'bg-[#667eea]', // Purple
+                        'bg-[#3b82f6]', // Blue
+                        'bg-[#10b981]', // Green
+                        'bg-[#f59e0b]', // Amber
+                        'bg-[#ef4444]', // Red
+                        'bg-[#8b5cf6]', // Violet
+                      ];
+                      return {
+                        name: mr.member.name,
+                        address: mr.member.registry || '0x0000000000000000000000000000000000000000',
+                        amount: mr.revenue.toFixed(4),
+                        percentage: Number(mr.percentage.toFixed(1)),
+                        color: colors[index % colors.length],
+                      };
+                    })}
+                  />
+                </div>
+
+                {/* User Earnings */}
+                {userEarnings !== undefined && (
+                  <InfoCard variant="info" className="mb-6">
+                    <div className="text-sm text-[#666666]">
+                      <strong>Your Earnings Ledger:</strong>{' '}
+                      <span className="font-semibold text-[#1a1a1a]">
+                        {userEarnings ? `${String(Number(userEarnings) / 1e18)} ETH` : '0 ETH'}
+                      </span>
+                      <div className="text-xs text-[#999999] mt-1 italic">
+                        Earnings accumulate across all pools. Use withdraw() to claim.
                       </div>
-                    )}
-                  </div>
-                </InfoCard>
+                    </div>
+                  </InfoCard>
+                )}
 
                 {/* Event Log Panel */}
                 {eventLogs.length > 0 && (
