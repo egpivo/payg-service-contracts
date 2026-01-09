@@ -1506,17 +1506,17 @@ export default function App() {
                 </>
               )}
 
-              {/* Wallet Connection Banner - Show if not connected */}
-              {!isConnected && (
-                <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
-                  <p className="text-yellow-800 font-semibold text-lg mb-2">
-                    ⚠️ Wallet Not Connected
-                  </p>
-                  <p className="text-yellow-700 text-sm">
-                    Please connect your wallet to proceed with checkout. You can still view package details below.
-                  </p>
-                </section>
-              )}
+          {/* Wallet Connection Banner - Show if not connected */}
+          {!isConnected && (
+            <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
+              <p className="text-yellow-800 font-semibold text-lg mb-2">
+                ⚠️ Wallet Not Connected
+              </p>
+              <p className="text-yellow-700 text-sm">
+                Please connect your wallet to proceed with checkout. You can still view package details below.
+              </p>
+            </section>
+          )}
 
           {/* System Status - Only show if connected */}
           {isConnected && <SystemStatus />}
