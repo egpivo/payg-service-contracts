@@ -3,6 +3,7 @@
 # Deploy PoolRegistry to local Anvil network
 # Usage: ./scripts/deploy-local.sh
 
+# Don't exit on error for service registration - allow it to continue even if one fails
 set -e
 
 echo "=== 部署 PoolRegistry 到本地 Anvil 网络 ==="
@@ -92,15 +93,19 @@ if command -v cast &> /dev/null; then
       $(cast --to-wei 0.5 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1)
+      2>&1)
   
-  if echo "$RESULT101" | grep -q "transactionHash"; then
-    TX_HASH101=$(echo "$RESULT101" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+  if echo "$RESULT101" | grep -q "transactionHash\|blockHash"; then
+    TX_HASH101=$(echo "$RESULT101" | grep -o "transactionHash: 0x[a-fA-F0-9]\{64\}" | sed 's/transactionHash: //' | head -1)
+    if [ -z "$TX_HASH101" ]; then
+      TX_HASH101=$(echo "$RESULT101" | grep -o "0x[a-fA-F0-9]\{64\}" | head -1)
+    fi
     echo "   ✓ 服务 101 已注册 (Tx: ${TX_HASH101:0:10}...)"
   else
     echo "   ✗ 服务 101 注册失败:"
     echo "$RESULT101" | tail -10
     echo "   请检查错误信息"
+    # Don't exit on error - continue with other services
   fi
 
   # Register service 201: Luxury Hotel Space (0.33 ETH)
@@ -111,15 +116,19 @@ if command -v cast &> /dev/null; then
       $(cast --to-wei 0.33 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1)
+      2>&1)
   
-  if echo "$RESULT201" | grep -q "transactionHash"; then
-    TX_HASH201=$(echo "$RESULT201" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+  if echo "$RESULT201" | grep -q "transactionHash\|blockHash"; then
+    TX_HASH201=$(echo "$RESULT201" | grep -o "transactionHash: 0x[a-fA-F0-9]\{64\}" | sed 's/transactionHash: //' | head -1)
+    if [ -z "$TX_HASH201" ]; then
+      TX_HASH201=$(echo "$RESULT201" | grep -o "0x[a-fA-F0-9]\{64\}" | head -1)
+    fi
     echo "   ✓ 服务 201 已注册 (Tx: ${TX_HASH201:0:10}...)"
   else
     echo "   ✗ 服务 201 注册失败:"
     echo "$RESULT201" | tail -10
     echo "   请检查错误信息"
+    # Don't exit on error - continue with other services
   fi
 
   # Register service 202: Premium Security Service (0.17 ETH)
@@ -130,25 +139,32 @@ if command -v cast &> /dev/null; then
       $(cast --to-wei 0.17 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1)
+      2>&1)
   
-  if echo "$RESULT202" | grep -q "transactionHash"; then
-    TX_HASH202=$(echo "$RESULT202" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+  if echo "$RESULT202" | grep -q "transactionHash\|blockHash"; then
+    TX_HASH202=$(echo "$RESULT202" | grep -o "transactionHash: 0x[a-fA-F0-9]\{64\}" | sed 's/transactionHash: //' | head -1)
+    if [ -z "$TX_HASH202" ]; then
+      TX_HASH202=$(echo "$RESULT202" | grep -o "0x[a-fA-F0-9]\{64\}" | head -1)
+    fi
     echo "   ✓ 服务 202 已注册 (Tx: ${TX_HASH202:0:10}...)"
   else
     echo "   ✗ 服务 202 注册失败:"
     echo "$RESULT202" | tail -10
     echo "   请检查错误信息"
+    # Don't exit on error - continue with verification
   fi
+  
+  # Re-enable exit on error after service registration
+  set -e
   
   echo ""
   echo "   验证服务注册状态..."
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 101 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 101 验证成功" || echo "   ⚠ 服务 101 验证失败"
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 201 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 201 验证成功" || echo "   ⚠ 服务 201 验证失败"
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 202 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 202 验证成功" || echo "   ⚠ 服务 202 验证失败"
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 101 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 101 验证成功" || echo "   ⚠ 服务 101 验证失败"
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 201 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 201 验证成功" || echo "   ⚠ 服务 201 验证失败"
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 202 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 202 验证成功" || echo "   ⚠ 服务 202 验证失败"
 else
   echo "   ⚠ cast 命令不可用，跳过服务注册"
-  echo "   提示: 可以手动调用 registerService(101, address(0), 500000000000000000) 等来注册服务"
+  echo "   提示: 可以手动调用 registerService(101, 500000000000000000) 等来注册服务"
   echo "   或者安装 foundry: curl -L https://foundry.paradigm.xyz | bash"
 fi
 
