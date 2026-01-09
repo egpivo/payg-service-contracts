@@ -1032,13 +1032,15 @@ export default function App() {
   }, [isMockMode, mockCreatePhase, demoState]);
 
   useEffect(() => {
+    // Only auto-transition to result if we're not already in result and purchase is confirmed
+    // Don't auto-transition if user is navigating back to purchasing
     if (isMockMode && mockPurchasePhase === 'confirmed') {
-      if (demoState !== 'result') {
+      if (demoState !== 'result' && demoState !== 'purchasing') {
         setDemoState('result');
       }
       return;
     }
-    if (isPurchaseConfirmed) {
+    if (isPurchaseConfirmed && demoState !== 'purchasing') {
       setDemoState('result');
     }
   }, [isPurchaseConfirmed, isMockMode, mockPurchasePhase, demoState]);
@@ -1998,10 +2000,21 @@ export default function App() {
                     <button
                       onClick={() => {
                         // Go back to purchasing step (Step 2)
-                        // Reset purchase state if needed
-                        if (!isMockMode && purchaseHash) {
+                        if (isMockMode) {
+                          // Reset mock purchase state to allow navigation back
+                          // Set to 'pending' instead of 'confirmed' to prevent useEffect from auto-returning to result
+                          setMockPurchasePhase('pending');
+                          setMockPurchaseHash(null);
+                          // Clear the completed flag to prevent auto-redirect
+                          purchaseCompletedRef.current = false;
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('purchaseCompleted');
+                            sessionStorage.removeItem('demoState');
+                          }
+                        } else if (purchaseHash) {
                           resetPurchase();
                         }
+                        // Set state to purchasing - this should work now that we've reset mockPurchasePhase
                         setDemoState('purchasing');
                       }}
                       className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
