@@ -677,6 +677,10 @@ export default function App() {
         return; // Don't process events if reverted
       }
       
+      // Clear failed flags if transaction succeeded
+      createFailedRef.current = false;
+      createFailedHashRef.current = null;
+      
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
         act.txHash === createReceipt.transactionHash 
