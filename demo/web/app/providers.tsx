@@ -5,12 +5,13 @@ import { WagmiProvider, createConfig, http } from 'wagmi';
 import { mainnet, sepolia, localhost } from 'wagmi/chains';
 import { injected, metaMask, walletConnect } from 'wagmi/connectors';
 import { useState } from 'react';
+import { isMockMode } from '@/config/demoMode';
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
 
 export const config = createConfig({
   chains: [localhost, sepolia, mainnet],
-  connectors: [
+  connectors: isMockMode ? [] : [
     injected(),
     metaMask(),
     // walletConnect({ projectId }), // Uncomment if you have WalletConnect project ID
