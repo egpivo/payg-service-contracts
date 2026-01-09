@@ -1155,6 +1155,12 @@ export default function App() {
       }
     }
     
+    // Check if any services are selected
+    if (DEMO_POOL.members.length === 0) {
+      addLog('error', 'No services selected. Please select services first.');
+      return;
+    }
+    
     // Clear any previous failure flags
     createFailedRef.current = false;
     createFailedHashRef.current = null;
@@ -1436,43 +1442,60 @@ export default function App() {
             {/* Intro State */}
             {demoState === 'intro' && (
               <div>
-
-                {/* Selected Services Summary */}
-                <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
-                  <h3 className="mb-4 text-lg font-semibold">Selected Services</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    {DEMO_POOL.members.map((member: PoolMember, index: number) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
-                        <span className="text-2xl">
-                          {getServiceIcon(member.serviceId, "w-5 h-5")}
-                        </span>
+                {DEMO_POOL.members.length === 0 ? (
+                  <div className="text-center space-y-6">
+                    <div className="bg-white rounded-xl p-8 border-2 border-[#e0e0e0]">
+                      <h3 className="text-xl font-semibold mb-4">No Services Selected</h3>
+                      <p className="text-[#666666] mb-6">
+                        Please select services to create a package.
+                      </p>
+                      <Link href="/select">
+                        <PrimaryButton className="text-[1.1rem]">
+                          Select Services →
+                        </PrimaryButton>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Selected Services Summary */}
+                    <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
+                      <h3 className="mb-4 text-lg font-semibold">Selected Services</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        {DEMO_POOL.members.map((member: PoolMember, index: number) => (
+                          <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
+                            <span className="text-2xl">
+                              {getServiceIcon(member.serviceId, "w-5 h-5")}
+                            </span>
+                            <div>
+                              <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
+                              <div className="text-sm text-[#666666]">{member.shares} shares</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
                         <div>
-                          <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
-                          <div className="text-sm text-[#666666]">{member.shares} shares</div>
+                          <div className="text-sm text-[#666666]">Total Price</div>
+                          <div className="text-2xl font-bold text-[#667eea]">{DEMO_POOL.price} ETH</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-[#666666]">Duration</div>
+                          <div className="text-lg font-semibold">{daysDuration} days</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-[#666666]">Total Price</div>
-                      <div className="text-2xl font-bold text-[#667eea]">{DEMO_POOL.price} ETH</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-[#666666]">Duration</div>
-                      <div className="text-lg font-semibold">{daysDuration} days</div>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <PrimaryButton 
-                    onClick={handleStartDemo}
-                    className="text-[1.1rem]"
-                  >
-                    Create Package
-                  </PrimaryButton>
-                </div>
+                    <div className="text-center">
+                      <PrimaryButton 
+                        onClick={handleStartDemo}
+                        className="text-[1.1rem]"
+                      >
+                        Create Package
+                      </PrimaryButton>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
