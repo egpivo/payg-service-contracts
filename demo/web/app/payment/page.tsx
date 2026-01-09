@@ -1040,7 +1040,7 @@ export default function App() {
       ],
       value: parseEther(DEMO_POOL.price),
     });
-  }, [writePurchase, addLog]);
+  }, [writePurchase, addLog, DEMO_POOL]);
 
   // Handle create confirmation - both from Wagmi and manual check
   // Use a ref to prevent duplicate triggers
@@ -1200,7 +1200,7 @@ export default function App() {
         setDemoState('intro');
       }
     }
-  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain]);
+  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain, DEMO_POOL]);
 
   const handleReset = () => {
     // Clear purchase completed flag when user explicitly resets
@@ -1395,38 +1395,40 @@ export default function App() {
         )}
 
         {/* Tab Navigation */}
-        <TabNavigation
-          checkout={
+          <TabNavigation
+            checkout={
             <div className="max-w-4xl mx-auto">
-              {/* Package Header */}
-              <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
-                    <p className="text-white/80 text-sm">Complete access to selected services</p>
-                  </div>
-                  <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                    <div className="grid grid-cols-4 gap-4 text-center">
-                      <div>
-                        <span className="text-white/70 text-xs block mb-1">Price</span>
-                        <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
-                      </div>
-                      <div>
-                        <span className="text-white/70 text-xs block mb-1">Duration</span>
-                        <span className="text-white font-semibold text-lg">{daysDuration} days</span>
-                      </div>
-                      <div>
-                        <span className="text-white/70 text-xs block mb-1">Fee</span>
-                        <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
-                      </div>
-                      <div>
-                        <span className="text-white/70 text-xs block mb-1">Services</span>
-                        <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
+              {/* Package Header - Only show if services are selected */}
+              {DEMO_POOL.members.length > 0 && (
+                <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
+                      <p className="text-white/80 text-sm">Complete access to selected services</p>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                        <div>
+                          <span className="text-white/70 text-xs block mb-1">Price</span>
+                          <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
+                        </div>
+                        <div>
+                          <span className="text-white/70 text-xs block mb-1">Duration</span>
+                          <span className="text-white font-semibold text-lg">{daysDuration} days</span>
+                        </div>
+                        <div>
+                          <span className="text-white/70 text-xs block mb-1">Fee</span>
+                          <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-white/70 text-xs block mb-1">Services</span>
+                          <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              )}
 
               {/* Wallet Connection Banner - Show if not connected */}
               {!isConnected && (
