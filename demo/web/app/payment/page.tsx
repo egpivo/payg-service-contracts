@@ -14,7 +14,6 @@ import { ActivityPanel, ActivityItem, ActivityStatus } from '@/components/Activi
 import { EventLogPanel, EventLog } from '@/components/EventLogPanel';
 import { ProtocolStatePanel } from '@/components/ProtocolStatePanel';
 import { BeforeAfterPanel } from '@/components/BeforeAfterPanel';
-import { TabNavigation } from '@/components/TabNavigation';
 import { DeveloperToggle } from '@/components/DeveloperToggle';
 import { TransactionLog, TransactionLogEntry, LogLevel } from '@/components/TransactionLog';
 import { TransactionProgress } from '@/components/TransactionProgress';
@@ -23,9 +22,11 @@ import { MoneyFlowDiagram } from '@/components/MoneyFlowDiagram';
 import { SettlementSuccessCard } from '@/components/SettlementSuccessCard';
 import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
+import { HelpDrawer } from '@/components/HelpDrawer';
+import { ProtocolBenefitCard } from '@/components/ProtocolBenefitCard';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
-import { getServiceIcon, CheckIcon, LightBulbIcon } from '@/components/Icons';
+import { getServiceIcon, CheckIcon, LightBulbIcon, XIcon } from '@/components/Icons';
 import { isMockMode } from '@/config/demoMode';
 
 // Service name mapping
@@ -93,6 +94,7 @@ export default function App() {
   const [mockPurchasePhase, setMockPurchasePhase] = useState<'idle' | 'signing' | 'pending' | 'confirmed'>('idle');
   const [mockCreateHash, setMockCreateHash] = useState<string | null>(null);
   const [mockPurchaseHash, setMockPurchaseHash] = useState<string | null>(null);
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const isDemoConnected = isMockMode ? true : isConnected;
 
   const makeMockHash = useCallback(() => {
@@ -310,10 +312,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     if (mounted && isDemoConnected) {
       addLog('info', isMockMode ? 'Demo mode active (no wallet required)' : 'Wallet connected');
     } else if (mounted && !isDemoConnected && demoState !== 'intro') {
@@ -339,7 +337,7 @@ export default function App() {
     
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
-        setDemoState('created');
+          setDemoState('created');
         addLog('info', 'Pool already exists, proceeding directly to purchase', {
           poolState: {
             exists: true,
@@ -349,13 +347,13 @@ export default function App() {
         });
       } else if (demoState === 'creating') {
         if (isCreateConfirmed) {
-          addLog('success', 'Pool created successfully', {
-            poolState: {
-              exists: true,
-              members: Number(poolData[2]),
-              totalShares: poolData[3],
-            },
-          });
+        addLog('success', 'Pool created successfully', {
+          poolState: {
+            exists: true,
+            members: Number(poolData[2]),
+            totalShares: poolData[3],
+          },
+        });
         } else {
           addLog('info', 'Pool data detected, transitioning to purchase step', {
             poolState: {
@@ -1422,95 +1420,143 @@ export default function App() {
         </section>
 
         {/* Network Switch Warning - Only show if not on localhost networks */}
-        {mounted && isConnected && chainId && chainId !== 1337 && chainId !== 31337 && (
+        {mounted && isDemoConnected && chainId && chainId !== 1337 && chainId !== 31337 && (
           <NetworkSwitchButton targetChainId={31337} targetChainName="Localhost 8545" />
         )}
 
-        {/* Tab Navigation */}
-        <TabNavigation
-          checkout={
+        {/* Help Drawer */}
+        <HelpDrawer isOpen={helpDrawerOpen} onClose={() => setHelpDrawerOpen(false)} transactionState={demoState} />
+
+        {/* Main Content */}
             <div className="max-w-4xl mx-auto">
-              {/* Package Header */}
-              <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
-                    <p className="text-white/80 text-sm">Complete access to selected services</p>
+          {/* Help Link */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setHelpDrawerOpen(true)}
+              className="flex items-center gap-2 text-sm text-[#667eea] hover:text-[#5568d3] font-medium transition-colors"
+            >
+              <LightBulbIcon className="w-4 h-4" />
+              How it works
+            </button>
                 </div>
-                  <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                    <div className="grid grid-cols-4 gap-4 text-center">
+
+          {/* Package Header - Only show if services are selected */}
+          {DEMO_POOL.members.length > 0 && (
+            <>
+            <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-6 text-white">
+                  <div className="flex items-center justify-between">
                     <div>
-                        <span className="text-white/70 text-xs block mb-1">Price</span>
-                        <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
+                      <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
+                      <p className="text-white/80 text-sm">Complete access to selected services</p>
+                    </div>
+                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                          <span className="text-white/70 text-xs block mb-1">Price</span>
+                          <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
                     </div>
                     <div>
-                        <span className="text-white/70 text-xs block mb-1">Duration</span>
-                        <span className="text-white font-semibold text-lg">{daysDuration} days</span>
+                          <span className="text-white/70 text-xs block mb-1">Duration</span>
+                          <span className="text-white font-semibold text-lg">{daysDuration} days</span>
                     </div>
                     <div>
-                        <span className="text-white/70 text-xs block mb-1">Fee</span>
-                        <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
+                          <span className="text-white/70 text-xs block mb-1">Fee</span>
+                          <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
                     </div>
-                    <div>
-                        <span className="text-white/70 text-xs block mb-1">Services</span>
-                        <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
-                    </div>
+                        <div>
+                          <span className="text-white/70 text-xs block mb-1">Services</span>
+                          <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
                   </div>
                 </div>
-                </div>
+                    </div>
+                  </div>
               </section>
 
-              {!isConnected ? (
-                <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)] text-center">
-                  <p className="text-[#666666] text-lg">Please connect your wallet to proceed with checkout.</p>
+                {/* Protocol Benefit Card */}
+                <ProtocolBenefitCard className="mb-6" />
+                </>
+              )}
+
+          {/* Wallet Connection Banner - Show if not connected */}
+          {!isDemoConnected && (
+                <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
+                  <p className="text-yellow-800 font-semibold text-lg mb-2">
+                    Wallet Not Connected
+                  </p>
+              <p className="text-yellow-700 text-sm">
+                Please connect your wallet to proceed with checkout. You can still view package details below.
+              </p>
                 </section>
-              ) : (
-                <>
-                {/* System Status */}
-                <SystemStatus />
+          )}
+
+          {/* System Status - Only show if connected */}
+              {isDemoConnected && <SystemStatus />}
 
                 <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
             <div className="space-y-8">
-            {/* Intro State */}
+            {/* Intro State - Only show if pool doesn't exist yet */}
             {demoState === 'intro' && (
               <div>
-
-                {/* Selected Services Summary */}
-                <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
-                  <h3 className="mb-4 text-lg font-semibold">Selected Services</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    {DEMO_POOL.members.map((member: PoolMember, index: number) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
-                        <span className="text-2xl">
-                          {getServiceIcon(member.serviceId, "w-5 h-5")}
-                        </span>
+                {DEMO_POOL.members.length === 0 ? (
+                  <div className="text-center space-y-6">
+                    <div className="bg-white rounded-xl p-8 border-2 border-[#e0e0e0]">
+                      <h3 className="text-xl font-semibold mb-4">No Services Selected</h3>
+                      <p className="text-[#666666] mb-6">
+                        Please select services to create a package.
+                      </p>
+                      <Link href="/select">
+                        <PrimaryButton className="text-[1.1rem]">
+                          Select Services →
+                        </PrimaryButton>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Selected Services Summary */}
+                    <div className="bg-white rounded-xl p-6 mb-6 border-2 border-[#e0e0e0]">
+                      <h3 className="mb-4 text-lg font-semibold">Selected Services</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        {DEMO_POOL.members.map((member: PoolMember, index: number) => (
+                          <div key={index} className="flex items-center gap-3 p-3 bg-[#f8f9fa] rounded-lg">
+                            <span className="text-2xl">
+                              {getServiceIcon(member.serviceId, "w-5 h-5")}
+                            </span>
+                            <div>
+                              <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
+                              <div className="text-sm text-[#666666]">{member.shares} shares</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
                         <div>
-                          <div className="font-semibold text-[#1a1a1a]">{member.name}</div>
-                          <div className="text-sm text-[#666666]">{member.shares} shares</div>
+                          <div className="text-sm text-[#666666]">Total Price</div>
+                          <div className="text-2xl font-bold text-[#667eea]">{DEMO_POOL.price} ETH</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-[#666666]">Duration</div>
+                          <div className="text-lg font-semibold">{daysDuration} days</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="pt-4 border-t border-[#e0e0e0] flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-[#666666]">Total Price</div>
-                      <div className="text-2xl font-bold text-[#667eea]">{DEMO_POOL.price} ETH</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-[#666666]">Duration</div>
-                      <div className="text-lg font-semibold">{daysDuration} days</div>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="text-center">
                   <PrimaryButton 
                     onClick={handleStartDemo}
                     className="text-[1.1rem]"
+                        disabled={!isDemoConnected}
                   >
-                    Create Package
+                        {!isDemoConnected ? 'Connect Wallet to Create Package' : 'Create Package'}
                   </PrimaryButton>
+                      {!isDemoConnected && (
+                        <p className="text-sm text-[#999999] mt-3">
+                          You need to connect your wallet to create a package
+                        </p>
+                      )}
                 </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1525,12 +1571,21 @@ export default function App() {
 
                 {/* Transaction Progress */}
                 <TransactionProgress
-                  currentStep={isCreateConfirmed ? 3 : (createHash ? 2 : 1)}
+                  currentStep={createIsConfirmed ? 3 : (createHasHash ? 2 : 1)}
                   totalSteps={3}
                   steps={[
-                    { label: 'Initialize Contract', status: createHash ? 'completed' : (isCreating ? 'active' : 'pending') },
-                    { label: 'Authorize Transaction', status: isCreateConfirming ? 'active' : (createHash ? 'completed' : 'pending') },
-                    { label: 'Complete', status: isCreateConfirmed ? 'completed' : 'pending' },
+                    { 
+                      label: 'Initialize Contract', 
+                      status: createHasHash ? 'completed' : (createWaitingForSignature ? 'active' : 'pending')
+                    },
+                    { 
+                      label: 'Authorize Transaction', 
+                      status: createIsConfirming ? 'active' : (createHasHash ? 'completed' : 'pending')
+                    },
+                    { 
+                      label: 'Complete', 
+                      status: createIsConfirmed ? 'completed' : 'pending'
+                    },
                   ]}
                 />
 
@@ -1538,24 +1593,28 @@ export default function App() {
                 <div className="mb-6">
                   <BeforeAfterPanel 
                     poolId={DEMO_POOL.poolId} 
-                    showAfter={demoState === 'created' || isCreateConfirmed}
+                    showAfter={demoState === 'created' || createIsConfirmed}
                     price={DEMO_POOL.price}
                     duration={daysDuration}
+                    memberCount={DEMO_POOL.members.length}
+                    totalShares={settlement.totalShares}
                   />
                 </div>
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} chainId={chainId} />
+                  <TransactionLog logs={txLogs} chainId={displayChainId} />
                 </div>
 
                 {/* Protocol State Panel */}
-                <div className="mb-6">
-                  <ProtocolStatePanel 
-                    poolId={DEMO_POOL.poolId}
-                    enabled={mounted && isConnected}
-                  />
-                </div>
+                {!isMockMode && (
+                  <div className="mb-6">
+                    <ProtocolStatePanel 
+                      poolId={DEMO_POOL.poolId}
+                      enabled={mounted && isConnected}
+                    />
+                  </div>
+                )}
 
                 {/* Developer Toggle */}
                 <DeveloperToggle title="Show protocol details">
@@ -1613,25 +1672,26 @@ export default function App() {
                       <button
                         onClick={handleBackFromCreate}
                         className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
-                        title={isCreating || isCreateConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
+                        title={createInProgress ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
                       >
                         ← Back to Start
                       </button>
                     )}
                     <PrimaryButton 
                       onClick={() => setDemoState('purchasing')}
-                      loading={demoState === 'creating' || isCreating || isCreateConfirming}
-                      disabled={demoState === 'creating' || isCreating || isCreateConfirming}
+                      loading={demoState === 'creating' || createInProgress}
+                      disabled={demoState === 'creating' || createInProgress || createFailedRef.current}
                       className="text-[1.1rem]"
                     >
-                      {isCreating && !createHash ? 'Waiting for wallet confirmation...' : 
-                       isCreating && createHash ? 'Waiting for confirmations...' :
-                       isCreateConfirming ? 'Confirming transaction...' :
+                      {createWaitingForSignature ? 'Waiting for wallet confirmation...' : 
+                       createWaitingForConfirmations ? 'Waiting for confirmations...' :
+                       createIsConfirming ? 'Confirming transaction...' :
+                       createFailedRef.current ? 'Create Failed - Try Again' :
                        demoState === 'creating' ? 'Creating Pool...' : 
                        'Proceed to Purchase →'}
                     </PrimaryButton>
                   </div>
-                  {(demoState === 'creating' || isCreating || isCreateConfirming) && (
+                  {(demoState === 'creating' || createInProgress) && (
                     <div className="text-xs text-[#999999]">
                       <p>Tip: Close MetaMask popup to access navigation buttons</p>
                       <button
@@ -1677,12 +1737,21 @@ export default function App() {
 
                 {/* Transaction Progress */}
                 <TransactionProgress
-                  currentStep={isPurchaseConfirmed ? 3 : (purchaseHash ? 2 : 1)}
+                  currentStep={purchaseIsConfirmed ? 3 : (purchaseHasHash ? 2 : 1)}
                   totalSteps={3}
                   steps={[
-                    { label: 'Approve Payment', status: purchaseHash ? 'completed' : (isPurchasing ? 'active' : 'pending') },
-                    { label: 'Confirm Transaction', status: isPurchaseConfirming ? 'active' : (purchaseHash ? 'completed' : 'pending') },
-                    { label: 'Complete', status: isPurchaseConfirmed ? 'completed' : 'pending' },
+                    { 
+                      label: 'Approve Payment', 
+                      status: purchaseHasHash ? 'completed' : (purchaseWaitingForSignature ? 'active' : 'pending')
+                    },
+                    { 
+                      label: 'Confirm Transaction', 
+                      status: purchaseIsConfirming ? 'active' : (purchaseHasHash ? 'completed' : 'pending')
+                    },
+                    { 
+                      label: 'Complete', 
+                      status: purchaseIsConfirmed ? 'completed' : 'pending'
+                    },
                   ]}
                 />
 
@@ -1708,7 +1777,7 @@ export default function App() {
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} chainId={chainId} />
+                  <TransactionLog logs={txLogs} chainId={displayChainId} />
                 </div>
 
                 <div className="text-center mb-8">
@@ -1719,12 +1788,14 @@ export default function App() {
                 </div>
 
                 {/* Protocol State Panel */}
-                <div className="mb-6">
-                  <ProtocolStatePanel 
-                    poolId={DEMO_POOL.poolId}
-                    enabled={mounted && isConnected}
-                  />
-                </div>
+                {!isMockMode && (
+                  <div className="mb-6">
+                    <ProtocolStatePanel 
+                      poolId={DEMO_POOL.poolId}
+                      enabled={mounted && isConnected}
+                    />
+                  </div>
+                )}
 
                 {/* Developer Toggle */}
                 <DeveloperToggle title="Show protocol details">
@@ -1770,7 +1841,7 @@ export default function App() {
                 )}
 
                 <div className="text-center space-y-3">
-                  {!isPurchasing && !isPurchaseConfirming && (
+                  {!purchaseInProgress && (
                     <div className="mb-3 text-sm text-[#666666] bg-[#f8f9fa] rounded-lg p-3 border border-[#e0e0e0]">
                       <span className="font-semibold">Total Payment:</span> {DEMO_POOL.price} ETH + estimated gas fee
                       <br />
@@ -1781,24 +1852,24 @@ export default function App() {
                     <button
                       onClick={handleBackFromPurchase}
                       className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
-                      title={isPurchasing || isPurchaseConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
+                      title={purchaseInProgress ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
                     >
                       ← Back to Step 1
                     </button>
                     <PrimaryButton 
                       variant="success"
                       onClick={handlePurchase}
-                      loading={(isPurchasing || isPurchaseConfirming) && !isPurchaseConfirmed}
-                      disabled={(isPurchasing || isPurchaseConfirming) && !isPurchaseConfirmed}
+                      loading={purchaseInProgress && !purchaseIsConfirmed}
+                      disabled={purchaseInProgress && !purchaseIsConfirmed}
                       className="text-[1.1rem]"
                     >
-                      {isPurchasing && !purchaseHash ? 'Waiting for wallet confirmation...' :
-                       isPurchasing && purchaseHash ? 'Waiting for confirmations...' :
-                       isPurchaseConfirming && !isPurchaseConfirmed ? 'Confirming transaction...' :
+                      {purchaseWaitingForSignature ? 'Waiting for wallet confirmation...' :
+                       purchaseWaitingForConfirmations ? 'Waiting for confirmations...' :
+                       purchaseIsConfirming && !purchaseIsConfirmed ? 'Confirming transaction...' :
                        `Purchase Package (${DEMO_POOL.price} ETH) →`}
                     </PrimaryButton>
                   </div>
-                  {(isPurchasing || isPurchaseConfirming) && (
+                  {purchaseInProgress && (
                     <div className="text-xs text-[#999999]">
                       <div className="flex items-center gap-2">
                         <LightBulbIcon className="w-4 h-4 text-[#999999]" />
@@ -1953,123 +2024,7 @@ export default function App() {
             )}
           </div>
         </section>
-                </>
-              )}
             </div>
-          }
-          help={
-            <div className="space-y-8">
-              {/* Product Flow Section */}
-              <section className="bg-[#f8f9fa] rounded-lg p-8">
-                <h2 className="text-center mb-8 text-[1.75rem] font-semibold">How It Works</h2>
-                <div className="flex flex-col md:flex-row justify-center items-start gap-4">
-                  <FlowStep 
-                    number={1} 
-                    title="Create Pool" 
-                    description="Set up a gallery pool with content and infrastructure services"
-                  />
-                  <FlowStep 
-                    number={2} 
-                    title="User Purchases" 
-                    description="Buy gallery access to all services in the pool"
-                  />
-                  <FlowStep 
-                    number={3} 
-                    title="Access Services" 
-                    description="Use content and infrastructure services with your access"
-                  />
-                  <FlowStep 
-                    number={4} 
-                    title="Auto Settlement" 
-                    description="Revenue splits automatically to providers"
-                    showArrow={false}
-                  />
-                </div>
-              </section>
-
-              {/* Protocol Concepts Section */}
-              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)] mb-8">
-                <h3 className="text-center mb-6 text-[1.5rem] font-semibold">Protocol Concepts</h3>
-                <div className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-lg p-6 text-white">
-                  <p className="text-center mb-6 text-sm opacity-90">
-                    Understanding how services are composed into packages
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Art Collection</p>
-                      <p className="font-semibold">= Service</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Hotel Space & Security</p>
-                      <p className="font-semibold">= Services</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Access Package</p>
-                      <p className="font-semibold">= Pool</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Providers</p>
-                      <p className="font-semibold">= Revenue Recipients</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Why This Matters Section */}
-              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
-                <h3 className="text-center mb-8 text-[1.5rem] font-semibold">Why Pools Exist</h3>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Without Pools */}
-                  <div className="bg-[#fef2f2] border-l-4 border-[#ef4444] rounded-r-lg p-6">
-                    <h4 className="mb-4 text-[#ef4444] font-semibold">Without Pools</h4>
-                    <ul className="space-y-3 text-[#666666]">
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Pay each service provider separately</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Manage multiple subscriptions</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Complex integration for each service</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Higher overhead for small transactions</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* With Pools */}
-                  <div className="bg-[#f0fdf4] border-l-4 border-[#10b981] rounded-r-lg p-6">
-                    <h4 className="mb-4 text-[#10b981] font-semibold">With Pools</h4>
-                    <ul className="space-y-3 text-[#666666]">
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Single payment for multiple services</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Automatic revenue distribution</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Simplified access management</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Lower fees with bundled services</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-            </div>
-          }
-        />
       </div>
     </div>
   );
