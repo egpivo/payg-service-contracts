@@ -1148,6 +1148,10 @@ export default function App() {
       }
     }
     
+    // Clear any previous failure flags
+    createFailedRef.current = false;
+    createFailedHashRef.current = null;
+    
     // Check if pool exists
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       // Pool exists, go straight to purchase
