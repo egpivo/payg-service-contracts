@@ -1518,10 +1518,10 @@ export default function App() {
                 </section>
               )}
 
-              {/* System Status - Only show if connected */}
-              {isConnected && <SystemStatus />}
+          {/* System Status - Only show if connected */}
+          {isConnected && <SystemStatus />}
 
-              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+          <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
             <div className="space-y-8">
             {/* Intro State */}
             {demoState === 'intro' && (
@@ -1603,9 +1603,21 @@ export default function App() {
                   currentStep={isCreateConfirmed ? 3 : (createHash ? 2 : 1)}
                   totalSteps={3}
                   steps={[
-                    { label: 'Initialize Contract', status: createHash ? 'completed' : (isCreating ? 'active' : 'pending') },
-                    { label: 'Authorize Transaction', status: isCreateConfirming ? 'active' : (createHash ? 'completed' : 'pending') },
-                    { label: 'Complete', status: isCreateConfirmed ? 'completed' : 'pending' },
+                    { 
+                      label: 'Initialize Contract', 
+                      status: createHash ? 'completed' : (isCreating ? 'active' : 'pending'),
+                      tooltip: 'This creates a smart contract "package" that bundles your selected providers'
+                    },
+                    { 
+                      label: 'Authorize Transaction', 
+                      status: isCreateConfirming ? 'active' : (createHash ? 'completed' : 'pending'),
+                      tooltip: 'Confirm the transaction in your wallet to deploy the pool contract'
+                    },
+                    { 
+                      label: 'Complete', 
+                      status: isCreateConfirmed ? 'completed' : 'pending',
+                      tooltip: 'Wait for blockchain confirmation. The pool will be ready for purchases once confirmed.'
+                    },
                   ]}
                 />
 
@@ -2151,120 +2163,7 @@ export default function App() {
             )}
           </div>
         </section>
-            </div>
-          </div>
-            <div className="space-y-8">
-              {/* Product Flow Section */}
-              <section className="bg-[#f8f9fa] rounded-lg p-8">
-                <h2 className="text-center mb-8 text-[1.75rem] font-semibold">How It Works</h2>
-                <div className="flex flex-col md:flex-row justify-center items-start gap-4">
-                  <FlowStep 
-                    number={1} 
-                    title="Create Pool" 
-                    description="Set up a gallery pool with content and infrastructure services"
-                  />
-                  <FlowStep 
-                    number={2} 
-                    title="User Purchases" 
-                    description="Buy gallery access to all services in the pool"
-                  />
-                  <FlowStep 
-                    number={3} 
-                    title="Access Services" 
-                    description="Use content and infrastructure services with your access"
-                  />
-                  <FlowStep 
-                    number={4} 
-                    title="Auto Settlement" 
-                    description="Revenue splits automatically to providers"
-                    showArrow={false}
-                  />
-                </div>
-              </section>
-
-              {/* Protocol Concepts Section */}
-              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)] mb-8">
-                <h3 className="text-center mb-6 text-[1.5rem] font-semibold">Protocol Concepts</h3>
-                <div className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-lg p-6 text-white">
-                  <p className="text-center mb-6 text-sm opacity-90">
-                    Understanding how services are composed into packages
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Art Collection</p>
-                      <p className="font-semibold">= Service</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Hotel Space & Security</p>
-                      <p className="font-semibold">= Services</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Access Package</p>
-                      <p className="font-semibold">= Pool</p>
-                    </div>
-                    <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <p className="opacity-75 text-xs mb-1">Providers</p>
-                      <p className="font-semibold">= Revenue Recipients</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Why This Matters Section */}
-              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
-                <h3 className="text-center mb-8 text-[1.5rem] font-semibold">Why Pools Exist</h3>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Without Pools */}
-                  <div className="bg-[#fef2f2] border-l-4 border-[#ef4444] rounded-r-lg p-6">
-                    <h4 className="mb-4 text-[#ef4444] font-semibold">Without Pools</h4>
-                    <ul className="space-y-3 text-[#666666]">
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Pay each service provider separately</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Manage multiple subscriptions</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Complex integration for each service</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#ef4444] mt-1 font-bold">•</span>
-                        <span>Higher overhead for small transactions</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* With Pools */}
-                  <div className="bg-[#f0fdf4] border-l-4 border-[#10b981] rounded-r-lg p-6">
-                    <h4 className="mb-4 text-[#10b981] font-semibold">With Pools</h4>
-                    <ul className="space-y-3 text-[#666666]">
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Single payment for multiple services</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Automatic revenue distribution</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Simplified access management</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#10b981] mt-1 font-bold">•</span>
-                        <span>Lower fees with bundled services</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-            </div>
-          }
-        />
+        </div>
       </div>
     </div>
   );
