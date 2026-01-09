@@ -170,6 +170,7 @@ echo ""
 echo -e "${BLUE}5. Starting Next.js dev server...${NC}"
 echo ""
 echo "   🌐 Web UI: http://localhost:3000"
+echo -e "   ${YELLOW}💡 Tip: If you see stale UI, do a hard refresh (Cmd+Shift+R / Ctrl+Shift+R)${NC}"
 echo "   📝 Press Ctrl+C to stop all services (Anvil + Next.js)"
 echo ""
 
