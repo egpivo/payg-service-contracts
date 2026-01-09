@@ -67,9 +67,9 @@ export default function HomePage() {
 
         {/* Quick Start Section */}
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 mb-12 max-w-3xl mx-auto">
-          <h3 className="text-xl font-semibold text-white mb-3">⚡ Quick Start</h3>
+          <h3 className="text-xl font-semibold text-white mb-3">Quick Start</h3>
           <p className="text-white/90 text-sm mb-4">
-            First time using this demo? You'll need to deploy the contract once:
+              First time using this demo? You&apos;ll need to deploy the contract once:
           </p>
           <div className="bg-white/20 rounded-lg p-4 space-y-2 text-sm">
             <div className="flex items-center gap-2 text-white/90">
@@ -82,7 +82,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="text-white/70 text-xs mt-3">
-            After deployment, refresh the page and you're ready to go!
+              After deployment, refresh the page and you&apos;re ready to go!
           </p>
         </div>
 

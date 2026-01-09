@@ -1114,7 +1114,7 @@ export default function App() {
             
             <div className="mt-6 bg-blue-100 border border-blue-300 rounded-lg p-4">
               <p className="text-sm text-blue-900">
-                <strong>💡 Tip:</strong> After the first deployment, you won't need to do this again unless you restart Anvil. 
+                <strong>Tip:</strong> After the first deployment, you won&apos;t need to do this again unless you restart Anvil. 
                 The contract address is saved in <code className="bg-blue-200 px-1 rounded">demo/contracts.json</code>.
               </p>
             </div>
