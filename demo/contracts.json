@@ -5,7 +5,7 @@
       "chainId": 31337,
       "rpcUrl": "http://localhost:8545",
       "contracts": {
-        "PoolRegistry": "0x0000000000000000000000000000000000000000"
+        "PoolRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
       }
     },
     "sepolia": {
@@ -17,4 +17,3 @@
     }
   }
 }
-

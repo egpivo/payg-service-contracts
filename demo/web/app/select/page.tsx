@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { WalletButton } from '@/components/WalletButton';
 import { useAccount } from 'wagmi';
 import { getServiceIcon, CheckIcon } from '@/components/Icons';
+import { isMockMode } from '@/config/demoMode';
 
 interface ServiceOption {
   id: string;
@@ -96,6 +97,7 @@ export default function SelectPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
+  const isDemoConnected = isMockMode ? true : isConnected;
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [customServices, setCustomServices] = useState<string[]>([]);
   const [showCustom, setShowCustom] = useState(false);
@@ -149,7 +151,7 @@ export default function SelectPage() {
     ? PACKAGE_OPTIONS.find(p => p.id === selectedPackage)?.services || []
     : customServices.map(id => AVAILABLE_SERVICES.find(s => s.id === id)!).filter(Boolean);
 
-  const canProceed = (selectedPackage || customServices.length > 0) && (mounted ? isConnected : false);
+  const canProceed = (selectedPackage || customServices.length > 0) && (mounted ? isDemoConnected : false);
 
   if (!mounted) {
     return (
@@ -183,7 +185,7 @@ export default function SelectPage() {
           </div>
         </div>
 
-        {mounted && !isConnected && (
+        {mounted && !isDemoConnected && (
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-8 text-center">
             <p className="text-yellow-800 font-semibold">
               Please connect your wallet to proceed with service selection

@@ -70,7 +70,7 @@ export default function HomePage() {
         {/* Quick Start Section */}
         {!isMockMode && (
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 mb-12 max-w-3xl mx-auto">
-            <h3 className="text-xl font-semibold text-white mb-3">⚡ Quick Start</h3>
+            <h3 className="text-xl font-semibold text-white mb-3">Quick Start</h3>
             <p className="text-white/90 text-sm mb-4">
               First time using this demo? You&apos;ll need to deploy the contract once:
             </p>

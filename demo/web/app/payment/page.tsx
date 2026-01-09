@@ -30,7 +30,6 @@ import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
 import { isMockMode } from '@/config/demoMode';
 import { getServiceIcon, CheckIcon, LightBulbIcon, XIcon } from '@/components/Icons';
 
-// Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
   '101': 'Rare Art Collection',
   '102': 'Historical Documents',
@@ -39,7 +38,6 @@ const SERVICE_NAMES: Record<string, string> = {
   '203': 'Presentation Services',
 };
 
-// Service price mapping (must match select page)
 const SERVICE_PRICES: Record<string, string> = {
   '101': '0.5',
   '102': '0.4',
@@ -55,8 +53,6 @@ interface PoolMember {
   name: string;
 }
 
-// Default pool configuration
-// Empty by default - user must select services from /select page
 const DEFAULT_POOL: {
   poolId: string;
   price: string;
@@ -113,7 +109,6 @@ export default function App() {
     return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
   }, []);
 
-  // Debug: Track all state changes
   const setDemoStateWithLog = useCallback((newState: DemoState, reason: string) => {
     const oldState = demoState;
     console.log(`[STATE CHANGE] ${oldState} -> ${newState} | Reason: ${reason} | PurchaseCompleted: ${purchaseCompletedRef.current}`);
@@ -121,10 +116,7 @@ export default function App() {
     setDemoState(newState);
   }, [demoState]);
 
-  // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
-
-  // Load configuration from sessionStorage after mount
   useEffect(() => {
     if (mounted) {
       const savedConfig = sessionStorage.getItem('selectedConfig');
@@ -133,11 +125,10 @@ export default function App() {
           const config = JSON.parse(savedConfig);
           if (config.type === 'package' || config.type === 'custom') {
             const serviceIds = config.services || [];
-            // Map service IDs to members with appropriate shares
             const shareMap: Record<string, number> = {
-              '101': 3, '102': 3, // content services
-              '201': 2, '203': 2, // venue services
-              '202': 1, // security services
+              '101': 3, '102': 3,
+              '201': 2, '203': 2,
+              '202': 1,
             };
             
             const members = serviceIds.map((serviceId: string) => ({
@@ -147,7 +138,6 @@ export default function App() {
               name: SERVICE_NAMES[serviceId] || `Service #${serviceId}`,
             }));
 
-            // Calculate total price by summing actual service prices (must match select page)
             const totalPrice = serviceIds.reduce((sum: number, serviceId: string) => {
               const price = SERVICE_PRICES[serviceId] || '0';
               return sum + parseFloat(price);
@@ -156,8 +146,8 @@ export default function App() {
             setDEMO_POOL({
               poolId: '42',
               price: totalPrice.toFixed(2),
-              duration: '604800', // 7 days
-              operatorFeeBps: '200', // 2%
+              duration: '604800',
+              operatorFeeBps: '200',
               members,
             });
           }
@@ -168,7 +158,6 @@ export default function App() {
     }
   }, [mounted]);
 
-  // Helper to add log entry
   const addLog = useCallback((level: LogLevel, msg: string, data?: {
     txHash?: string;
     status?: 'pending' | 'confirmed' | 'reverted';
@@ -226,9 +215,6 @@ export default function App() {
     : isPurchasing || isPurchaseConfirming;
   const displayChainId = isMockMode ? 31337 : chainId;
 
-  // Check if pool already exists (only refetch after tx confirmed or on mount)
-  // Don't refetch if we're in result state (purchase completed)
-  // Also don't refetch if purchase was confirmed (even if state hasn't updated yet)
   const shouldRefetchPool = !isMockMode && mounted && isConnected && 
     (demoState !== 'result' && demoState !== 'purchased' && demoState !== 'purchase_failed') &&
     !(purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) &&
@@ -241,24 +227,19 @@ export default function App() {
     query: { 
       enabled: shouldRefetchPool,
       refetchInterval: (query) => {
-        // Stop refetching if we're in result state (purchase completed) or failed state
         if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchase_failed') {
           return false;
         }
-        // Stop refetching if purchase was confirmed (even if state hasn't updated yet)
         if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
           return false;
         }
-        // Keep refetching if we're waiting for confirmation OR if pool was created but data not available yet
         if (isCreateConfirming || isPurchaseConfirming) {
           return 2000;
         }
-        // Continue refetching after confirmation until pool data is available
-        // Check if pool data exists and matches the expected pool ID
         if (isCreateConfirmed) {
           const poolData = poolQuery.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
           if (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId)) {
-            return 2000; // Keep refetching every 2 seconds until pool data is available
+            return 2000;
           }
         }
         return false;
@@ -268,7 +249,6 @@ export default function App() {
   const poolData = poolQuery.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
   const refetchPool = poolQuery.refetch;
   
-  // Check if contract code exists at the address
   const [contractCodeExists, setContractCodeExists] = useState<boolean | null>(null);
   
   useEffect(() => {
@@ -301,7 +281,6 @@ export default function App() {
     }
   }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry, isMockMode]);
 
-  // Query earnings and access for settlement display
   const { data: userEarnings } = useReadContract({
     address: CONTRACT_ADDRESSES.PoolRegistry,
     abi: PoolRegistryABI,
@@ -344,8 +323,6 @@ export default function App() {
     if (mounted && isDemoConnected) {
       addLog('info', isMockMode ? 'Demo mode active (no wallet required)' : 'Wallet connected');
     } else if (mounted && !isDemoConnected && demoState !== 'intro') {
-      // Don't reset state when wallet disconnects - just log it
-      // This prevents the flow from resetting if user accidentally disconnects
       addLog('warning', 'Wallet disconnected. Please reconnect to continue.');
     }
   }, [mounted, isDemoConnected, addLog, demoState, isMockMode]);
@@ -354,28 +331,20 @@ export default function App() {
     if (isMockMode) {
       return;
     }
-    // CRITICAL: Never run this effect if purchase was completed
     if (purchaseCompletedRef.current) {
       return;
     }
     
-    // Don't run this effect if we're already in 'result' or 'purchased' state
-    // Also don't run if we're in 'purchasing' state - let purchase confirmation handle state transitions
-    // Also don't run if purchase was confirmed (even if state hasn't updated yet)
-    // This prevents the state from being reset after purchase completes or during purchase
     if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing' || demoState === 'purchase_failed') {
       return;
     }
     
-    // Don't run if purchase was confirmed (even if state hasn't updated yet)
-    // Check if ANY purchase hash was confirmed (not just current one, in case purchaseHash was reset)
     if (purchaseReceiptFound.current.size > 0) {
       return;
     }
     
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
-        // Pool already exists - automatically skip to purchase stage
         setDemoState('created');
         addLog('info', 'Pool already exists, proceeding directly to purchase', {
           poolState: {
@@ -385,10 +354,7 @@ export default function App() {
           },
         });
       } else if (demoState === 'creating') {
-        // Transition to 'created' state when pool data is available
-        // This works even if isCreateConfirmed hasn't updated yet (backup logic)
         if (isCreateConfirmed) {
-          // Log pool state after creation
           addLog('success', 'Pool created successfully', {
             poolState: {
               exists: true,
@@ -397,7 +363,6 @@ export default function App() {
             },
           });
         } else {
-          // Pool data exists but isCreateConfirmed not yet true - log anyway
           addLog('info', 'Pool data detected, transitioning to purchase step', {
             poolState: {
               exists: true,
@@ -406,41 +371,29 @@ export default function App() {
             },
           });
         }
-        // Always transition to 'created' state when pool data is available
-        // This ensures pool data is loaded before showing purchase step
         setDemoState('created');
-        // Check if we should go directly to checkout after creation
         const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
         if (goToCheckout) {
-          sessionStorage.removeItem('goToCheckout'); // Clear flag
+          sessionStorage.removeItem('goToCheckout');
         }
       }
-      // Explicitly do NOT handle 'created' state here - it should only transition forward via purchase confirmation
     }
   }, [poolData, demoState, isCreateConfirmed, addLog, purchaseHash, isMockMode]);
 
-  // Auto-create pool if coming from selection page and pool doesn't exist
   useEffect(() => {
     if (isMockMode) {
       return;
     }
-    // Don't auto-create if we just came from a failed state
     if (createFailedRef.current) {
-      console.log('[AUTO-CREATE] BLOCKED: createFailedRef is true');
       return;
     }
     
-    // CRITICAL: Wait for DEMO_POOL to be loaded from sessionStorage
-    // Check if members array is populated (not empty)
     if (DEMO_POOL.members.length === 0) {
-      console.log('[AUTO-CREATE] BLOCKED: DEMO_POOL.members is empty, waiting for config to load...');
       return;
     }
     
-    // Validate price is set
     const priceNum = parseFloat(DEMO_POOL.price);
     if (isNaN(priceNum) || priceNum <= 0) {
-      console.log('[AUTO-CREATE] BLOCKED: Invalid price:', DEMO_POOL.price);
       return;
     }
     
@@ -449,15 +402,7 @@ export default function App() {
       const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
       
       if (goToCheckout && hasSelectedConfig && (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId))) {
-        // Pool doesn't exist, auto-create it
         if (!isCreating && !createHash) {
-          console.log('[AUTO-CREATE] Starting auto-creation', {
-            membersCount: DEMO_POOL.members.length,
-            price: DEMO_POOL.price,
-            serviceIds: DEMO_POOL.members.map(m => m.serviceId)
-          });
-          
-          // Clear any previous failure flags
           createFailedRef.current = false;
           createFailedHashRef.current = null;
           
@@ -465,7 +410,6 @@ export default function App() {
           const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
           const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
           
-          // Double-check arrays are not empty
           if (serviceIds.length === 0 || registries.length === 0 || shares.length === 0) {
             console.error('[AUTO-CREATE] ERROR: Empty arrays!', {
               serviceIds: serviceIds.length,
@@ -506,7 +450,6 @@ export default function App() {
     }
   }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog, isMockMode]);
 
-  // Activity tracking
   const addActivity = useCallback((activity: Omit<ActivityItem, 'id' | 'timestamp'>) => {
     setActivities(prev => [...prev, {
       ...activity,
@@ -519,12 +462,10 @@ export default function App() {
     setActivities(prev => prev.map(act => act.id === id ? { ...act, ...updates } : act));
   }, []);
 
-  // Track create transaction with better error handling
   useEffect(() => {
     if (isMockMode) {
       return;
     }
-    // Clear any existing polling timeouts when effect runs or dependencies change
     createPollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
     createPollingTimeouts.current = [];
 
@@ -541,7 +482,6 @@ export default function App() {
       });
 
       // Start manual check immediately (don't wait for isCreateConfirming)
-      // This is critical because Wagmi might be on wrong network
       const checkReceipt = async () => {
         try {
           const response = await fetch('http://localhost:8545', {
@@ -562,9 +502,6 @@ export default function App() {
               gasUsed: BigInt(data.result.gasUsed || '0'),
               blockNumber: BigInt(data.result.blockNumber || '0'),
             });
-            // Trigger pool refetch to ensure data is updated before state transition
-            // The useEffect at line 237 will handle state transition when poolData updates
-            // This ensures pool data is available before moving to 'created' state
             setTimeout(async () => {
               if (refetchPool) {
                 try {
@@ -573,10 +510,9 @@ export default function App() {
                   console.error('Error refetching pool after manual check:', error);
                 }
               }
-            }, 1000); // Wait for block to be processed
-            return true; // Found receipt
+            }, 1000);
+            return true;
           }
-          // Also check if transaction exists in mempool
           const txResponse = await fetch('http://localhost:8545', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -589,7 +525,6 @@ export default function App() {
           });
           const txData = await txResponse.json();
           if (!txData.result) {
-            // Transaction not found at all - might be on wrong network
             addLog('error', `Transaction ${createHash.slice(0, 10)}... not found on Anvil. It may have been sent to wrong network (Chain 1).`);
             addLog('error', 'Please refresh the page and ensure MetaMask is on Localhost 8545 (Chain 31337).');
             setDemoState('intro');
@@ -602,7 +537,6 @@ export default function App() {
         }
       };
 
-      // Check immediately and then every 2 seconds
       let checkCount = 0;
       const maxChecks = 30; // 30 checks = 60 seconds
       
@@ -671,7 +605,7 @@ export default function App() {
           }
           // refetchInterval will continue polling automatically
         }
-      }, 1500); // Wait a bit longer to ensure block is fully processed
+      }, 1500);
     }
   }, [isCreateConfirmed, createReceipt, refetchPool, addLog, isMockMode]);
 
@@ -690,8 +624,6 @@ export default function App() {
         status: 'pending',
       });
 
-      // Manual check as fallback (in case Wagmi is on wrong network)
-      // Use direct RPC call to localhost to bypass Wagmi network issues
       const checkReceipt = async () => {
         try {
           const response = await fetch('http://localhost:8545', {
@@ -723,7 +655,7 @@ export default function App() {
                   console.error('Error refetching pool after manual check:', error);
                 }
               }
-            }, 1000); // Wait for block to be processed
+            }, 1000);
             return true; // Found receipt, stop polling
           }
         } catch (e) {
@@ -731,7 +663,6 @@ export default function App() {
         }
       };
 
-      // Check immediately and then every 2 seconds
       let checkCount = 0;
       const maxChecks = 30; // 30 checks = 60 seconds
       
@@ -766,7 +697,6 @@ export default function App() {
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
-      // Check if transaction reverted
       const isReverted = createReceipt.status === 'reverted';
       
       if (isReverted) {
@@ -791,7 +721,6 @@ export default function App() {
         return; // Don't process events if reverted
       }
       
-      // Clear failed flags if transaction succeeded
       createFailedRef.current = false;
       createFailedHashRef.current = null;
       
@@ -958,7 +887,6 @@ export default function App() {
         }
       };
 
-      // Check immediately and then every 2 seconds
       let checkCount = 0;
       const maxChecks = 30;
       
@@ -1318,7 +1246,6 @@ export default function App() {
       return;
     }
     
-    // Check network first - both MetaMask and Wagmi
     const ethereum = (window as any).ethereum;
     let metaMaskChainId: number | null = null;
     
@@ -1331,11 +1258,9 @@ export default function App() {
       }
     }
     
-    // Check if network is correct
     const expectedChainId = 31337;
     const wagmiChainId = chainId;
     
-    // Only block if MetaMask is on wrong network (Wagmi can be wrong, we'll use MetaMask)
     if (metaMaskChainId !== null && metaMaskChainId !== expectedChainId) {
       addLog('error', `Wrong network! MetaMask is on Chain ${metaMaskChainId}, but expected Chain ${expectedChainId}.`);
       addLog('info', 'Attempting to switch network...');
@@ -1449,7 +1374,6 @@ export default function App() {
   }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain, DEMO_POOL, isMockMode, makeMockHash, addActivity]);
 
   const handleReset = () => {
-    // Clear purchase completed flag when user explicitly resets
     purchaseCompletedRef.current = false;
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('purchaseCompleted');
@@ -1464,9 +1388,7 @@ export default function App() {
     setDemoState('intro');
     setActivities([]);
     setEventLogs([]);
-    // Check if user came from select page
     const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
-    // Navigate back: if came from select page, go back to select; otherwise go to home
     if (hasSelectedConfig) {
       router.push('/select');
     } else {
@@ -1474,7 +1396,6 @@ export default function App() {
     }
   };
 
-  // Calculate settlement breakdown
   const calculateSettlement = () => {
     const price = parseFloat(DEMO_POOL.price);
     const operatorFeeBps = parseInt(DEMO_POOL.operatorFeeBps);
@@ -1483,7 +1404,6 @@ export default function App() {
     
     const totalShares = DEMO_POOL.members.reduce((sum: number, m: PoolMember) => sum + parseInt(m.shares), 0);
     
-    // Calculate revenue for each member dynamically
     const memberRevenues = DEMO_POOL.members.map((member: PoolMember) => {
       const shares = parseInt(member.shares);
       return {
@@ -1494,7 +1414,6 @@ export default function App() {
       };
     });
     
-    // For backward compatibility, keep the old structure but use first member's revenue
     const contentRevenue = memberRevenues[0]?.revenue || 0;
     const venueRevenue = memberRevenues[1]?.revenue || 0;
     const securityRevenue = memberRevenues[2]?.revenue || 0;
@@ -1507,7 +1426,7 @@ export default function App() {
       venueRevenue,
       securityRevenue,
       totalShares,
-      memberRevenues, // Add new field for dynamic member revenues
+      memberRevenues,
     };
   };
 
@@ -1524,14 +1443,13 @@ export default function App() {
     );
   }
 
-  // Show friendly setup guide if contract doesn't exist (first-time setup)
   if (!isMockMode && mounted && isConnected && contractCodeExists === false) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-8 mb-6 shadow-lg">
             <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-blue-900 mb-2">🚀 First Time Setup</h2>
+              <h2 className="text-3xl font-bold text-blue-900 mb-2">First Time Setup</h2>
               <p className="text-blue-700 text-lg">
                 This is a development demo. You need to deploy the contract once to get started.
               </p>
@@ -1585,7 +1503,7 @@ export default function App() {
                 onClick={() => window.location.reload()}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors"
               >
-                🔄 Refresh Page
+                Refresh Page
               </button>
               <Link
                 href="/"
@@ -1597,7 +1515,7 @@ export default function App() {
             
             <div className="mt-6 bg-blue-100 border border-blue-300 rounded-lg p-4">
               <p className="text-sm text-blue-900">
-                <strong>💡 Tip:</strong> After the first deployment, you won&apos;t need to do this again unless you restart Anvil. 
+                <strong>Tip:</strong> After the first deployment, you won&apos;t need to do this again unless you restart Anvil. 
                 The contract address is saved in <code className="bg-blue-200 px-1 rounded">demo/contracts.json</code>.
               </p>
             </div>
@@ -1703,7 +1621,7 @@ export default function App() {
           {!isDemoConnected && (
                 <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
                   <p className="text-yellow-800 font-semibold text-lg mb-2">
-                    ⚠️ Wallet Not Connected
+                    Wallet Not Connected
                   </p>
               <p className="text-yellow-700 text-sm">
                 Please connect your wallet to proceed with checkout. You can still view package details below.
@@ -2035,7 +1953,6 @@ export default function App() {
                         variant="success"
                         onClick={() => {
                           setDemoState('result');
-                          // Scroll to settlement section after state update
                           setTimeout(() => {
                             const settlementSection = document.getElementById('settlement-section');
                             if (settlementSection) {

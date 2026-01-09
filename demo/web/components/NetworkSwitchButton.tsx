@@ -2,6 +2,7 @@
 
 import { useSwitchChain, useAccount } from 'wagmi';
 import { useChainId } from 'wagmi';
+import { isMockMode } from '@/config/demoMode';
 
 interface NetworkSwitchButtonProps {
   targetChainId: number;
@@ -19,7 +20,7 @@ export function NetworkSwitchButton({ targetChainId, targetChainName = 'Localhos
   const isLocalhost = chainId === 1337 || chainId === 31337;
   const isTargetLocalhost = targetChainId === 1337 || targetChainId === 31337;
   
-  if (!isConnected || !chainId || chainId === targetChainId || (isLocalhost && isTargetLocalhost)) {
+  if (isMockMode || !isConnected || !chainId || chainId === targetChainId || (isLocalhost && isTargetLocalhost)) {
     return null;
   }
 

@@ -7,8 +7,7 @@ interface ProtocolBenefitCardProps {
 export function ProtocolBenefitCard({ className = '' }: ProtocolBenefitCardProps) {
   return (
     <div className={`bg-gradient-to-br from-[#f0f9ff] to-[#e0f2fe] border border-[#bae6fd] rounded-xl p-6 ${className}`}>
-      <h3 className="text-lg font-semibold text-[#0369a1] mb-4 flex items-center gap-2">
-        <span>💡</span>
+      <h3 className="text-lg font-semibold text-[#0369a1] mb-4">
         Protocol Benefits
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

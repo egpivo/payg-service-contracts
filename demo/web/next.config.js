@@ -1,10 +1,20 @@
 /** @type {import('next').NextConfig} */
+const isGhPages = process.env.NEXT_PUBLIC_DEPLOY_TARGET === 'github';
+const rawBasePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = isGhPages && rawBasePath
+  ? (rawBasePath.startsWith('/') ? rawBasePath : `/${rawBasePath}`)
+  : '';
+
 const nextConfig = {
   reactStrictMode: true,
-  // Allow cross-origin requests from 127.0.0.1 in development
-  // This prevents the warning when accessing via 127.0.0.1 instead of localhost
+  ...(isGhPages && {
+    output: 'export',
+    trailingSlash: true,
+    basePath,
+    assetPrefix: basePath || undefined,
+    images: { unoptimized: true },
+  }),
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
-  // Disable caching in development to prevent stale UI
   ...(process.env.NODE_ENV === 'development' && {
     headers: async () => {
       return [
@@ -21,18 +31,15 @@ const nextConfig = {
     },
   }),
   webpack: (config) => {
-    // Fallback for Node.js modules that aren't available in browser
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       net: false,
       tls: false,
-      // Ignore optional dependencies that aren't needed for browser usage
       '@react-native-async-storage/async-storage': false,
       'pino-pretty': false,
     };
 
-    // Suppress warnings for optional dependencies (webpack 5)
     config.ignoreWarnings = [
       ...(config.ignoreWarnings || []),
       {
