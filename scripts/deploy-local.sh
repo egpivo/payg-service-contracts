@@ -84,11 +84,11 @@ if command -v cast &> /dev/null; then
   echo "   Using cast to register services..."
   
   # Register service 101: Rare Art Collection (0.5 ETH)
+  # Function signature: registerService(uint256 _serviceId, uint256 _price)
   echo "   正在注册服务 101..."
   RESULT101=$(cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,address,uint256)" \
+      "registerService(uint256,uint256)" \
       101 \
-      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.5 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
@@ -99,16 +99,15 @@ if command -v cast &> /dev/null; then
     echo "   ✓ 服务 101 已注册 (Tx: ${TX_HASH101:0:10}...)"
   else
     echo "   ✗ 服务 101 注册失败:"
-    echo "$RESULT101" | tail -5
+    echo "$RESULT101" | tail -10
     echo "   请检查错误信息"
   fi
 
   # Register service 201: Luxury Hotel Space (0.33 ETH)
   echo "   正在注册服务 201..."
   RESULT201=$(cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,address,uint256)" \
+      "registerService(uint256,uint256)" \
       201 \
-      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.33 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
@@ -119,16 +118,15 @@ if command -v cast &> /dev/null; then
     echo "   ✓ 服务 201 已注册 (Tx: ${TX_HASH201:0:10}...)"
   else
     echo "   ✗ 服务 201 注册失败:"
-    echo "$RESULT201" | tail -5
+    echo "$RESULT201" | tail -10
     echo "   请检查错误信息"
   fi
 
   # Register service 202: Premium Security Service (0.17 ETH)
   echo "   正在注册服务 202..."
   RESULT202=$(cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,address,uint256)" \
+      "registerService(uint256,uint256)" \
       202 \
-      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.17 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
@@ -139,7 +137,7 @@ if command -v cast &> /dev/null; then
     echo "   ✓ 服务 202 已注册 (Tx: ${TX_HASH202:0:10}...)"
   else
     echo "   ✗ 服务 202 注册失败:"
-    echo "$RESULT202" | tail -5
+    echo "$RESULT202" | tail -10
     echo "   请检查错误信息"
   fi
   
