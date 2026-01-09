@@ -115,4 +115,6 @@ forge coverage --ir-minimum --report lcov --report summary
 make coverage
 ```
 
-MIT License
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
