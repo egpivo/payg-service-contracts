@@ -26,7 +26,7 @@ import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
-import { getServiceIcon, CheckIcon, LightBulbIcon } from '@/components/Icons';
+import { getServiceIcon, CheckIcon, LightBulbIcon, XIcon } from '@/components/Icons';
 
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
@@ -86,6 +86,8 @@ export default function App() {
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchaseReceiptFound = useRef<Set<string>>(new Set()); // Track which purchase hashes have been confirmed
   const purchaseCompletedRef = useRef<boolean>(false); // Track if purchase has been completed - NEVER reset this
+  const createFailedRef = useRef<boolean>(false); // Track if create transaction failed
+  const createFailedHashRef = useRef<string | null>(null); // Track which create hash failed
 
   // Debug: Track all state changes
   const setDemoStateWithLog = useCallback((newState: DemoState, reason: string) => {
