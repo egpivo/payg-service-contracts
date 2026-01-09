@@ -22,10 +22,10 @@ const getContracts = () => {
   const network = contractsConfig.networks.localhost;
   return {
     PoolRegistry: network.contracts.PoolRegistry as `0x${string}`,
-    // For demo: Use placeholder addresses for different registries
+    // For demo: Use PoolRegistry itself as the registry (it implements IServiceRegistry)
     // In production, these would be actual deployed contract addresses
-    ArticleRegistry: (network.contracts as any).ArticleRegistry as `0x${string}` || '0x1111111111111111111111111111111111111111' as `0x${string}`,
-    RentalRegistry: (network.contracts as any).RentalRegistry as `0x${string}` || '0x2222222222222222222222222222222222222222' as `0x${string}`,
+    ArticleRegistry: (network.contracts as any).ArticleRegistry as `0x${string}` || (network.contracts as any).PoolRegistry as `0x${string}` || '0x1111111111111111111111111111111111111111' as `0x${string}`,
+    RentalRegistry: (network.contracts as any).RentalRegistry as `0x${string}` || (network.contracts as any).PoolRegistry as `0x${string}` || '0x2222222222222222222222222222222222222222' as `0x${string}`,
   };
 };
 
