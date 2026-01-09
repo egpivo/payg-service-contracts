@@ -77,8 +77,10 @@ echo "5. 注册演示服务..."
 
 # Register demo services in PoolRegistry using forge script (more reliable than cast)
 # Service 101: Rare Art Collection (0.5 ETH)
-# Service 201: Luxury Hotel Space (0.33 ETH)  
+# Service 102: Historical Documents (0.4 ETH)
+# Service 201: Luxury Hotel Space (0.33 ETH)
 # Service 202: Premium Security Service (0.17 ETH)
+# Service 203: Presentation Services (0.2 ETH)
 
 # Check if cast is available, if not use forge script
 if command -v cast &> /dev/null; then
@@ -108,6 +110,29 @@ if command -v cast &> /dev/null; then
     # Don't exit on error - continue with other services
   fi
 
+  # Register service 102: Historical Documents (0.4 ETH)
+  echo "   正在注册服务 102..."
+  RESULT102=$(cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,uint256)" \
+      102 \
+      $(cast --to-wei 0.4 ether) \
+      --rpc-url http://localhost:8545 \
+      --private-key $DEPLOYER_PRIVATE_KEY \
+      2>&1)
+  
+  if echo "$RESULT102" | grep -q "transactionHash\|blockHash"; then
+    TX_HASH102=$(echo "$RESULT102" | grep -o "transactionHash: 0x[a-fA-F0-9]\{64\}" | sed 's/transactionHash: //' | head -1)
+    if [ -z "$TX_HASH102" ]; then
+      TX_HASH102=$(echo "$RESULT102" | grep -o "0x[a-fA-F0-9]\{64\}" | head -1)
+    fi
+    echo "   ✓ 服务 102 已注册 (Tx: ${TX_HASH102:0:10}...)"
+  else
+    echo "   ✗ 服务 102 注册失败:"
+    echo "$RESULT102" | tail -10
+    echo "   请检查错误信息"
+    # Don't exit on error - continue with other services
+  fi
+
   # Register service 201: Luxury Hotel Space (0.33 ETH)
   echo "   正在注册服务 201..."
   RESULT201=$(cast send $CONTRACT_ADDRESS \
@@ -130,7 +155,7 @@ if command -v cast &> /dev/null; then
     echo "   请检查错误信息"
     # Don't exit on error - continue with other services
   fi
-
+  
   # Register service 202: Premium Security Service (0.17 ETH)
   echo "   正在注册服务 202..."
   RESULT202=$(cast send $CONTRACT_ADDRESS \
@@ -153,15 +178,47 @@ if command -v cast &> /dev/null; then
     echo "   请检查错误信息"
     # Don't exit on error - continue with verification
   fi
+
+  # Register service 203: Presentation Services (0.2 ETH)
+  echo "   正在注册服务 203..."
+  RESULT203=$(cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,uint256)" \
+      203 \
+      $(cast --to-wei 0.2 ether) \
+      --rpc-url http://localhost:8545 \
+      --private-key $DEPLOYER_PRIVATE_KEY \
+      2>&1)
+  
+  if echo "$RESULT203" | grep -q "transactionHash\|blockHash"; then
+    TX_HASH203=$(echo "$RESULT203" | grep -o "transactionHash: 0x[a-fA-F0-9]\{64\}" | sed 's/transactionHash: //' | head -1)
+    if [ -z "$TX_HASH203" ]; then
+      TX_HASH203=$(echo "$RESULT203" | grep -o "0x[a-fA-F0-9]\{64\}" | head -1)
+    fi
+    echo "   ✓ 服务 203 已注册 (Tx: ${TX_HASH203:0:10}...)"
+  else
+    echo "   ✗ 服务 203 注册失败:"
+    echo "$RESULT203" | tail -10
+    echo "   请检查错误信息"
+    # Don't exit on error - continue with verification
+  fi
   
   # Re-enable exit on error after service registration
   set -e
   
   echo ""
   echo "   验证服务注册状态..."
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 101 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 101 验证成功" || echo "   ⚠ 服务 101 验证失败"
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 201 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 201 验证成功" || echo "   ⚠ 服务 201 验证失败"
-  cast call $CONTRACT_ADDRESS "getService(uint256)" 202 --rpc-url http://localhost:8545 2>/dev/null | grep -q "true" && echo "   ✓ 服务 202 验证成功" || echo "   ⚠ 服务 202 验证失败"
+  # getService returns (uint256 price, address provider, bool exists)
+  # Check the last value (exists) - it should be 0x0000...0001 (true) or 0x0000...0000 (false)
+  for SERVICE_ID in 101 102 201 202 203; do
+    RESULT=$(cast call $CONTRACT_ADDRESS "getService(uint256)" $SERVICE_ID --rpc-url http://localhost:8545 2>/dev/null)
+    # Extract the last 64 characters (the bool exists value)
+    EXISTS=$(echo "$RESULT" | tail -c 65 | head -c 64)
+    if [ "$EXISTS" = "0000000000000000000000000000000000000000000000000000000000000001" ]; then
+      echo "   ✓ 服务 $SERVICE_ID 验证成功"
+    else
+      echo "   ⚠ 服务 $SERVICE_ID 验证失败 (exists: $EXISTS)"
+    fi
+  done
 else
   echo "   ⚠ cast 命令不可用，跳过服务注册"
   echo "   提示: 可以手动调用 registerService(101, 500000000000000000) 等来注册服务"
@@ -175,4 +232,3 @@ echo "下一步:"
 echo "1. 刷新 Web UI 页面 (http://localhost:3000)"
 echo "2. 重新连接钱包"
 echo "3. 点击 'Run Demo Flow' 开始使用"
-
