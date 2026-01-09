@@ -28,11 +28,18 @@ PR_*.md
 DESIGN_QUESTIONS_ANALYSIS.md
 DESIGN_ASSUMPTIONS_ANALYSIS.md
 
-# Demo documentation (local only)
-demo/*.md
-demo/*.sh
-!demo/CONCRETE_EXAMPLE.md
-!demo/web/README.md
+# Demo documentation (local only, keep out of repo)
+demo/ANVIL_RESTART_GUIDE.md
+demo/CONCRETE_EXAMPLE.md
+demo/FIGMA_DESIGN_PROMPT.md
+demo/FIX_HANGING_TRANSACTION.md
+demo/LOCAL_SETUP.md
+demo/QUICK_FIX.md
+demo/QUICK_FIX_HANGING.md
+demo/RPC_ERRORS_EXPLANATION.md
+demo/SPEED_UP_TRANSACTIONS.md
+demo/TROUBLESHOOTING.md
+demo/check_account.sh
 
 # Web UI build artifacts and dependencies
 demo/web/node_modules/
