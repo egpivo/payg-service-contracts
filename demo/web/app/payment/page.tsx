@@ -1997,16 +1997,12 @@ export default function App() {
                   <div className="flex items-center justify-center gap-4">
                     <button
                       onClick={() => {
-                        // Check if user already has access - if so, go to result, otherwise go to purchasing
-                        if (displayHasAccess === true) {
-                          setDemoState('result');
-                        } else {
-                          // Reset purchase state when going back
-                          if (purchaseHash) {
-                            resetPurchase();
-                          }
-                          setDemoState('purchasing');
+                        // Go back to purchasing step (Step 2)
+                        // Reset purchase state if needed
+                        if (!isMockMode && purchaseHash) {
+                          resetPurchase();
                         }
+                        setDemoState('purchasing');
                       }}
                       className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
                     >
