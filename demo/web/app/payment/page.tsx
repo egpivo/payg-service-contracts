@@ -27,6 +27,7 @@ import { NetworkSwitchButton } from '@/components/NetworkSwitchButton';
 import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
+import { isMockMode } from '@/config/demoMode';
 import { getServiceIcon, CheckIcon, LightBulbIcon, XIcon } from '@/components/Icons';
 
 // Service name mapping
@@ -69,6 +70,8 @@ type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' |
 export default function App() {
   const router = useRouter();
   const { isConnected, address } = useAccount();
+  const isDemoConnected = isMockMode ? true : isConnected;
+  const demoAddress = isMockMode ? '0xDEMO000000000000000000000000000000000000' : address;
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
@@ -82,10 +85,27 @@ export default function App() {
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
   const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const mockTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchaseReceiptFound = useRef<Set<string>>(new Set()); // Track which purchase hashes have been confirmed
   const purchaseCompletedRef = useRef<boolean>(false); // Track if purchase has been completed - NEVER reset this
   const createFailedRef = useRef<boolean>(false); // Track if create transaction failed
   const createFailedHashRef = useRef<string | null>(null); // Track which create hash failed
+  const [mockCreatePhase, setMockCreatePhase] = useState<'idle' | 'signing' | 'pending' | 'confirmed'>('idle');
+  const [mockPurchasePhase, setMockPurchasePhase] = useState<'idle' | 'signing' | 'pending' | 'confirmed'>('idle');
+  const [mockCreateHash, setMockCreateHash] = useState<string | null>(null);
+  const [mockPurchaseHash, setMockPurchaseHash] = useState<string | null>(null);
+
+  const makeMockHash = useCallback(() => {
+    const bytes = new Uint8Array(32);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }, []);
 
   // Debug: Track all state changes
   const setDemoStateWithLog = useCallback((newState: DemoState, reason: string) => {
@@ -165,7 +185,7 @@ export default function App() {
     useWaitForTransactionReceipt({ 
       hash: createHash,
       query: {
-        enabled: !!createHash,
+        enabled: !!createHash && !isMockMode,
         retry: 3,
         retryDelay: 1000,
       },
@@ -174,16 +194,36 @@ export default function App() {
     useWaitForTransactionReceipt({ 
       hash: purchaseHash,
       query: {
-        enabled: !!purchaseHash,
+        enabled: !!purchaseHash && !isMockMode,
         retry: 3,
         retryDelay: 1000,
       },
     });
 
+  const activeCreateHash = isMockMode ? mockCreateHash : createHash;
+  const activePurchaseHash = isMockMode ? mockPurchaseHash : purchaseHash;
+  const createHasHash = !!activeCreateHash;
+  const purchaseHasHash = !!activePurchaseHash;
+  const createWaitingForSignature = isMockMode ? mockCreatePhase === 'signing' : (isCreating && !createHash);
+  const createWaitingForConfirmations = isMockMode ? mockCreatePhase === 'pending' : (isCreating && !!createHash);
+  const createIsConfirming = isMockMode ? mockCreatePhase === 'pending' : isCreateConfirming;
+  const createIsConfirmed = isMockMode ? mockCreatePhase === 'confirmed' : isCreateConfirmed;
+  const createInProgress = isMockMode
+    ? mockCreatePhase === 'signing' || mockCreatePhase === 'pending'
+    : isCreating || isCreateConfirming;
+  const purchaseWaitingForSignature = isMockMode ? mockPurchasePhase === 'signing' : (isPurchasing && !purchaseHash);
+  const purchaseWaitingForConfirmations = isMockMode ? mockPurchasePhase === 'pending' : (isPurchasing && !!purchaseHash);
+  const purchaseIsConfirming = isMockMode ? mockPurchasePhase === 'pending' : isPurchaseConfirming;
+  const purchaseIsConfirmed = isMockMode ? mockPurchasePhase === 'confirmed' : isPurchaseConfirmed;
+  const purchaseInProgress = isMockMode
+    ? mockPurchasePhase === 'signing' || mockPurchasePhase === 'pending'
+    : isPurchasing || isPurchaseConfirming;
+  const displayChainId = isMockMode ? 31337 : chainId;
+
   // Check if pool already exists (only refetch after tx confirmed or on mount)
   // Don't refetch if we're in result state (purchase completed)
   // Also don't refetch if purchase was confirmed (even if state hasn't updated yet)
-  const shouldRefetchPool = mounted && isConnected && 
+  const shouldRefetchPool = !isMockMode && mounted && isConnected && 
     (demoState !== 'result' && demoState !== 'purchased' && demoState !== 'purchase_failed') &&
     !(purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) &&
     (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro' || demoState === 'creating' || demoState === 'created' || demoState === 'purchasing');
@@ -226,6 +266,10 @@ export default function App() {
   const [contractCodeExists, setContractCodeExists] = useState<boolean | null>(null);
   
   useEffect(() => {
+    if (mounted && isMockMode) {
+      setContractCodeExists(true);
+      return;
+    }
     if (mounted && isConnected && CONTRACT_ADDRESSES.PoolRegistry) {
       const checkContractCode = async () => {
         try {
@@ -249,7 +293,7 @@ export default function App() {
       };
       checkContractCode();
     }
-  }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry]);
+  }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry, isMockMode]);
 
   // Query earnings and access for settlement display
   const { data: userEarnings } = useReadContract({
@@ -257,7 +301,7 @@ export default function App() {
     abi: PoolRegistryABI,
     functionName: 'earnings',
     args: address ? [address as `0x${string}`] : undefined,
-    query: { enabled: !!address && mounted && isConnected },
+    query: { enabled: !isMockMode && !!address && mounted && isConnected },
   });
 
   const { data: hasAccess } = useReadContract({
@@ -265,11 +309,19 @@ export default function App() {
     abi: PoolRegistryABI,
     functionName: 'hasPoolAccess',
     args: address && (demoState === 'result' || demoState === 'purchasing') ? [address as `0x${string}`, BigInt(DEMO_POOL.poolId)] : undefined,
-    query: { enabled: !!address && (demoState === 'result' || demoState === 'purchasing') && mounted && isConnected },
+    query: { enabled: !isMockMode && !!address && (demoState === 'result' || demoState === 'purchasing') && mounted && isConnected },
   });
+  const displayHasAccess = isMockMode ? demoState === 'result' : hasAccess;
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+    };
   }, []);
 
   // Debug: Track all state changes
@@ -283,16 +335,19 @@ export default function App() {
   }, [demoState, purchaseHash, createHash]);
 
   useEffect(() => {
-    if (mounted && isConnected) {
-      addLog('info', 'Wallet connected');
-    } else if (mounted && !isConnected && demoState !== 'intro') {
+    if (mounted && isDemoConnected) {
+      addLog('info', isMockMode ? 'Demo mode active (no wallet required)' : 'Wallet connected');
+    } else if (mounted && !isDemoConnected && demoState !== 'intro') {
       // Don't reset state when wallet disconnects - just log it
       // This prevents the flow from resetting if user accidentally disconnects
       addLog('warning', 'Wallet disconnected. Please reconnect to continue.');
     }
-  }, [mounted, isConnected, addLog, demoState]);
+  }, [mounted, isDemoConnected, addLog, demoState, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     // CRITICAL: Never run this effect if purchase was completed
     if (purchaseCompletedRef.current) {
       return;
@@ -314,15 +369,9 @@ export default function App() {
     
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
-        // Check if we should go directly to checkout
-        const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
-        if (goToCheckout) {
-          setDemoState('created'); // Go to purchase stage
-          sessionStorage.removeItem('goToCheckout'); // Clear flag
-        } else {
-          setDemoState('created');
-        }
-        addLog('info', 'Pool already exists, skipping creation', {
+        // Pool already exists - automatically skip to purchase stage
+        setDemoState('created');
+        addLog('info', 'Pool already exists, proceeding directly to purchase', {
           poolState: {
             exists: true,
             members: Number(poolData[2]),
@@ -362,10 +411,13 @@ export default function App() {
       }
       // Explicitly do NOT handle 'created' state here - it should only transition forward via purchase confirmation
     }
-  }, [poolData, demoState, isCreateConfirmed, addLog, purchaseHash]);
+  }, [poolData, demoState, isCreateConfirmed, addLog, purchaseHash, isMockMode]);
 
   // Auto-create pool if coming from selection page and pool doesn't exist
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     // Don't auto-create if we just came from a failed state
     if (createFailedRef.current) {
       console.log('[AUTO-CREATE] BLOCKED: createFailedRef is true');
@@ -446,7 +498,7 @@ export default function App() {
         }
       }
     }
-  }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog]);
+  }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog, isMockMode]);
 
   // Activity tracking
   const addActivity = useCallback((activity: Omit<ActivityItem, 'id' | 'timestamp'>) => {
@@ -463,6 +515,9 @@ export default function App() {
 
   // Track create transaction with better error handling
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     // Clear any existing polling timeouts when effect runs or dependencies change
     createPollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
     createPollingTimeouts.current = [];
@@ -567,10 +622,13 @@ export default function App() {
         createPollingTimeouts.current = [];
       };
     }
-  }, [createHash, addActivity, addLog, refetchPool, updateActivity]);
+  }, [createHash, addActivity, addLog, refetchPool, updateActivity, isMockMode]);
 
   // Refetch pool after create confirmed
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (isCreateConfirmed && createReceipt && refetchPool) {
       addLog('success', 'createPool transaction confirmed', {
         txHash: createReceipt.transactionHash,
@@ -609,9 +667,12 @@ export default function App() {
         }
       }, 1500); // Wait a bit longer to ensure block is fully processed
     }
-  }, [isCreateConfirmed, createReceipt, refetchPool, addLog]);
+  }, [isCreateConfirmed, createReceipt, refetchPool, addLog, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (createHash && isCreateConfirming && !loggedConfirmingTx.current.has(createHash)) {
       loggedConfirmingTx.current.add(createHash);
       // Find and update activity in a single setActivities call to avoid race condition
@@ -690,9 +751,12 @@ export default function App() {
         }
       };
     }
-  }, [createHash, isCreateConfirming, updateActivity, addLog]);
+  }, [createHash, isCreateConfirming, updateActivity, addLog, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (createReceipt && !loggedEventTx.current.has(createReceipt.transactionHash)) {
       loggedEventTx.current.add(createReceipt.transactionHash);
       
@@ -756,9 +820,12 @@ export default function App() {
         events,
       }]);
     }
-  }, [createReceipt, updateActivity]);
+  }, [createReceipt, updateActivity, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (createHash && isCreateError) {
       // Mark as failed
       createFailedRef.current = true;
@@ -778,10 +845,13 @@ export default function App() {
       resetCreate();
       // Stay in creating state so user can see the error and retry
     }
-  }, [createHash, isCreateError, updateActivity, addLog, resetCreate]);
+  }, [createHash, isCreateError, updateActivity, addLog, resetCreate, isMockMode]);
 
   // Track purchase transaction
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     // CRITICAL: Never start polling if purchase was completed
     if (purchaseCompletedRef.current) {
       purchasePollingTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
@@ -926,9 +996,12 @@ export default function App() {
     }
     // Note: demoState is intentionally NOT in dependencies to prevent effect from re-running
     // when state changes to 'result'. We check demoState inside the effect instead.
-  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState]);
+  }, [purchaseHash, addActivity, addLog, updateActivity, setDemoState, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (purchaseHash && isPurchaseConfirming && !loggedConfirmingTx.current.has(purchaseHash)) {
       loggedConfirmingTx.current.add(purchaseHash);
       // Find and update activity in a single setActivities call to avoid race condition
@@ -940,9 +1013,12 @@ export default function App() {
         status: 'pending',
       });
     }
-  }, [purchaseHash, isPurchaseConfirming, updateActivity, addLog]);
+  }, [purchaseHash, isPurchaseConfirming, updateActivity, addLog, isMockMode]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (purchaseReceipt && !loggedEventTx.current.has(purchaseReceipt.transactionHash)) {
       console.log('[PURCHASE RECEIPT] Receipt received', {
         txHash: purchaseReceipt.transactionHash,
@@ -1013,12 +1089,15 @@ export default function App() {
         events,
       }]);
     }
-  }, [purchaseReceipt, updateActivity, addLog, demoState]);
+  }, [purchaseReceipt, updateActivity, addLog, demoState, isMockMode]);
 
   // Store purchase error message for display
   const [purchaseErrorMessage, setPurchaseErrorMessage] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (purchaseHash && isPurchaseError) {
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
@@ -1040,31 +1119,83 @@ export default function App() {
         setDemoState('purchase_failed');
       }
     }
-  }, [purchaseHash, isPurchaseError, updateActivity, addLog, demoState]);
+  }, [purchaseHash, isPurchaseError, updateActivity, addLog, demoState, isMockMode]);
 
   const [shouldAutoPurchase, setShouldAutoPurchase] = useState(false);
 
   // Navigation handlers that can cancel pending transactions
   const handleBackFromCreate = useCallback(() => {
-    if (isCreating || isCreateConfirming) {
+    if (isMockMode) {
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+      setMockCreatePhase('idle');
+      setMockCreateHash(null);
+      addLog('info', 'Demo transaction cancelled.');
+    } else if (isCreating || isCreateConfirming) {
       // Reset the transaction state
       resetCreate();
       addLog('info', 'Transaction cancelled. Please reject the transaction in MetaMask if the popup is still open.');
     }
     // Navigate back to home page
     router.push('/');
-  }, [isCreating, isCreateConfirming, resetCreate, addLog, router]);
+  }, [isCreating, isCreateConfirming, resetCreate, addLog, router, isMockMode]);
 
   const handleBackFromPurchase = useCallback(() => {
-    if (isPurchasing || isPurchaseConfirming) {
+    if (isMockMode) {
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+      setMockPurchasePhase('idle');
+      setMockPurchaseHash(null);
+      addLog('info', 'Demo transaction cancelled.');
+    } else if (isPurchasing || isPurchaseConfirming) {
       // Reset the transaction state
       resetPurchase();
       addLog('info', 'Transaction cancelled. Please reject the transaction in MetaMask if the popup is still open.');
     }
     setDemoState('created');
-  }, [isPurchasing, isPurchaseConfirming, resetPurchase, addLog]);
+  }, [isPurchasing, isPurchaseConfirming, resetPurchase, addLog, isMockMode]);
 
   const handlePurchase = useCallback(() => {
+    if (isMockMode) {
+      setDemoState('purchasing');
+      setMockPurchasePhase('signing');
+      setMockPurchaseHash(null);
+      addLog('info', 'Demo mode: simulating purchase');
+      const mockHash = makeMockHash();
+      const pendingTimeout = setTimeout(() => {
+        setMockPurchasePhase('pending');
+        setMockPurchaseHash(mockHash);
+        addActivity({
+          action: 'Purchase Pool',
+          status: 'submitting',
+          txHash: mockHash,
+        });
+        addLog('tx', 'purchasePool transaction sent (demo)', {
+          txHash: mockHash,
+          status: 'pending',
+        });
+      }, 400);
+      const confirmTimeout = setTimeout(() => {
+        setMockPurchasePhase('confirmed');
+        purchaseCompletedRef.current = true;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('purchaseCompleted', 'true');
+          sessionStorage.setItem('demoState', 'result');
+        }
+        setActivities(prev => prev.map(act =>
+          act.txHash === mockHash
+            ? { ...act, status: 'confirmed' as ActivityStatus }
+            : act
+        ));
+        addLog('success', 'purchasePool transaction confirmed (demo)', {
+          txHash: mockHash,
+          status: 'confirmed',
+        });
+        setDemoState('result');
+      }, 1400);
+      mockTimeouts.current.push(pendingTimeout, confirmTimeout);
+      return;
+    }
     setDemoState('purchasing');
     addLog('info', 'Requesting wallet signature for purchasePool');
     writePurchase({
@@ -1077,7 +1208,7 @@ export default function App() {
       ],
       value: parseEther(DEMO_POOL.price),
     });
-  }, [writePurchase, addLog, DEMO_POOL]);
+  }, [writePurchase, addLog, DEMO_POOL, isMockMode, makeMockHash, addActivity]);
 
   // Handle create confirmation - both from Wagmi and manual check
   // Use a ref to prevent duplicate triggers
@@ -1107,6 +1238,9 @@ export default function App() {
   }, [demoState]);
 
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
     if (isPurchaseConfirmed && purchaseHash) {
       // Mark this purchase hash as confirmed
       purchaseReceiptFound.current.add(purchaseHash);
@@ -1126,11 +1260,57 @@ export default function App() {
         setDemoState('result');
       }
     }
-  }, [isPurchaseConfirmed, purchaseHash, demoState]);
+  }, [isPurchaseConfirmed, purchaseHash, demoState, isMockMode]);
 
   // Auto-run flow: check if pool exists, create if needed, then purchase
   const handleStartDemo = useCallback(async () => {
     addLog('info', 'Starting package creation flow');
+
+    if (isMockMode) {
+      if (DEMO_POOL.members.length === 0) {
+        addLog('error', 'No services selected. Please select services first.');
+        return;
+      }
+      createFailedRef.current = false;
+      createFailedHashRef.current = null;
+      setShouldAutoPurchase(true);
+      setDemoState('creating');
+      setMockCreatePhase('signing');
+      setMockCreateHash(null);
+      addLog('info', 'Demo mode: simulating pool creation');
+      const mockHash = makeMockHash();
+      const pendingTimeout = setTimeout(() => {
+        setMockCreatePhase('pending');
+        setMockCreateHash(mockHash);
+        addActivity({
+          action: 'Create Pool',
+          status: 'submitting',
+          txHash: mockHash,
+        });
+        addLog('tx', 'createPool transaction sent (demo)', {
+          txHash: mockHash,
+          status: 'pending',
+        });
+      }, 400);
+      const confirmTimeout = setTimeout(() => {
+        setMockCreatePhase('confirmed');
+        setActivities(prev => prev.map(act =>
+          act.txHash === mockHash
+            ? { ...act, status: 'confirmed' as ActivityStatus }
+            : act
+        ));
+        addLog('success', 'Pool created successfully (demo)', {
+          poolState: {
+            exists: true,
+            members: DEMO_POOL.members.length,
+            totalShares: BigInt(DEMO_POOL.members.reduce((sum, member) => sum + parseInt(member.shares, 10), 0)),
+          },
+        });
+        setDemoState('created');
+      }, 1400);
+      mockTimeouts.current.push(pendingTimeout, confirmTimeout);
+      return;
+    }
     
     // Check network first - both MetaMask and Wagmi
     const ethereum = (window as any).ethereum;
@@ -1260,7 +1440,7 @@ export default function App() {
         setDemoState('intro');
       }
     }
-  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain, DEMO_POOL]);
+  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain, DEMO_POOL, isMockMode, makeMockHash, addActivity]);
 
   const handleReset = () => {
     // Clear purchase completed flag when user explicitly resets
@@ -1269,6 +1449,12 @@ export default function App() {
       sessionStorage.removeItem('purchaseCompleted');
       sessionStorage.removeItem('demoState');
     }
+    mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+    mockTimeouts.current = [];
+    setMockCreatePhase('idle');
+    setMockPurchasePhase('idle');
+    setMockCreateHash(null);
+    setMockPurchaseHash(null);
     setDemoState('intro');
     setActivities([]);
     setEventLogs([]);
@@ -1333,7 +1519,7 @@ export default function App() {
   }
 
   // Show friendly setup guide if contract doesn't exist (first-time setup)
-  if (mounted && isConnected && contractCodeExists === false) {
+  if (!isMockMode && mounted && isConnected && contractCodeExists === false) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -1422,10 +1608,10 @@ export default function App() {
         <section className="bg-white rounded-lg p-6 mb-8 flex items-center justify-between border border-[#e0e0e0]">
           <div className="flex items-center gap-4">
             <div>
-              {isConnected ? (
+              {isDemoConnected ? (
                 <div>
                   <span className="text-[#666666] text-[0.85rem]">Connected:</span>
-                  <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                  <span className="ml-2 font-mono">{demoAddress?.slice(0, 6)}...{demoAddress?.slice(-4)}</span>
                 </div>
               ) : (
                 <span className="text-[#666666]">Not connected</span>
@@ -1450,12 +1636,12 @@ export default function App() {
         </section>
 
         {/* Network Switch Warning - Only show if not on localhost networks */}
-        {mounted && isConnected && chainId && chainId !== 1337 && chainId !== 31337 && (
+        {mounted && isDemoConnected && chainId && chainId !== 1337 && chainId !== 31337 && (
           <NetworkSwitchButton targetChainId={31337} targetChainName="Localhost 8545" />
         )}
 
         {/* Help Drawer */}
-        <HelpDrawer isOpen={helpDrawerOpen} onClose={() => setHelpDrawerOpen(false)} />
+        <HelpDrawer isOpen={helpDrawerOpen} onClose={() => setHelpDrawerOpen(false)} transactionState={demoState} />
 
         {/* Main Content */}
         <div className="max-w-4xl mx-auto">
@@ -1508,11 +1694,11 @@ export default function App() {
               )}
 
           {/* Wallet Connection Banner - Show if not connected */}
-          {!isConnected && (
-            <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
-              <p className="text-yellow-800 font-semibold text-lg mb-2">
-                ⚠️ Wallet Not Connected
-              </p>
+          {!isDemoConnected && (
+                <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
+                  <p className="text-yellow-800 font-semibold text-lg mb-2">
+                    ⚠️ Wallet Not Connected
+                  </p>
               <p className="text-yellow-700 text-sm">
                 Please connect your wallet to proceed with checkout. You can still view package details below.
               </p>
@@ -1520,11 +1706,11 @@ export default function App() {
           )}
 
           {/* System Status - Only show if connected */}
-          {isConnected && <SystemStatus />}
+              {isDemoConnected && <SystemStatus />}
 
           <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
             <div className="space-y-8">
-            {/* Intro State */}
+            {/* Intro State - Only show if pool doesn't exist yet */}
             {demoState === 'intro' && (
               <div>
                 {DEMO_POOL.members.length === 0 ? (
@@ -1575,11 +1761,11 @@ export default function App() {
                       <PrimaryButton 
                         onClick={handleStartDemo}
                         className="text-[1.1rem]"
-                        disabled={!isConnected}
+                        disabled={!isDemoConnected}
                       >
-                        {!isConnected ? 'Connect Wallet to Create Package' : 'Create Package'}
+                        {!isDemoConnected ? 'Connect Wallet to Create Package' : 'Create Package'}
                       </PrimaryButton>
-                      {!isConnected && (
+                      {!isDemoConnected && (
                         <p className="text-sm text-[#999999] mt-3">
                           You need to connect your wallet to create a package
                         </p>
@@ -1601,22 +1787,22 @@ export default function App() {
 
                 {/* Transaction Progress */}
                 <TransactionProgress
-                  currentStep={isCreateConfirmed ? 3 : (createHash ? 2 : 1)}
+                  currentStep={createIsConfirmed ? 3 : (createHasHash ? 2 : 1)}
                   totalSteps={3}
                   steps={[
                     { 
                       label: 'Initialize Contract', 
-                      status: createHash ? 'completed' : (isCreating ? 'active' : 'pending'),
+                      status: createHasHash ? 'completed' : (createWaitingForSignature ? 'active' : 'pending'),
                       tooltip: 'This creates a smart contract "package" that bundles your selected providers'
                     },
                     { 
                       label: 'Authorize Transaction', 
-                      status: isCreateConfirming ? 'active' : (createHash ? 'completed' : 'pending'),
+                      status: createIsConfirming ? 'active' : (createHasHash ? 'completed' : 'pending'),
                       tooltip: 'Confirm the transaction in your wallet to deploy the pool contract'
                     },
                     { 
                       label: 'Complete', 
-                      status: isCreateConfirmed ? 'completed' : 'pending',
+                      status: createIsConfirmed ? 'completed' : 'pending',
                       tooltip: 'Wait for blockchain confirmation. The pool will be ready for purchases once confirmed.'
                     },
                   ]}
@@ -1626,22 +1812,33 @@ export default function App() {
                 <div className="mb-6">
                   <BeforeAfterPanel 
                     poolId={DEMO_POOL.poolId} 
-                    showAfter={demoState === 'created' || isCreateConfirmed}
+                    showAfter={demoState === 'created' || createIsConfirmed}
                     price={DEMO_POOL.price}
                     duration={daysDuration}
+                    memberCount={DEMO_POOL.members.length}
+                    totalShares={settlement.totalShares}
                   />
                 </div>
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} chainId={chainId} />
+                  <TransactionLog logs={txLogs} chainId={displayChainId} />
                 </div>
 
                 {/* Protocol State Panel */}
                 <div className="mb-6">
                   <ProtocolStatePanel 
                     poolId={DEMO_POOL.poolId}
-                    enabled={mounted && isConnected}
+                    enabled={mounted && isConnected && !isMockMode}
+                    mockData={isMockMode ? {
+                      price: DEMO_POOL.price,
+                      accessDuration: parseInt(DEMO_POOL.duration, 10),
+                      operatorFeeBps: DEMO_POOL.operatorFeeBps,
+                      members: DEMO_POOL.members.map((member) => ({
+                        serviceId: member.serviceId,
+                        shares: member.shares,
+                      })),
+                    } : undefined}
                   />
                 </div>
 
@@ -1743,6 +1940,10 @@ export default function App() {
                             createFailedHashRef.current = null;
                             resetCreate();
                             setDemoState('creating');
+                            if (isMockMode) {
+                              handleStartDemo();
+                              return;
+                            }
                             // Trigger create again
                             const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
                             const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
@@ -1777,25 +1978,25 @@ export default function App() {
                           <button
                             onClick={handleBackFromCreate}
                             className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
-                            title={isCreating || isCreateConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
+                            title={createInProgress ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
                           >
                             ← Back to Start
                           </button>
                         )}
                         <PrimaryButton 
                           onClick={() => setDemoState('purchasing')}
-                          loading={demoState === 'creating' || isCreating || isCreateConfirming}
-                          disabled={demoState === 'creating' || isCreating || isCreateConfirming}
+                          loading={demoState === 'creating' || createInProgress}
+                          disabled={demoState === 'creating' || createInProgress}
                           className="text-[1.1rem]"
                         >
-                          {isCreating && !createHash ? 'Waiting for wallet confirmation...' : 
-                           isCreating && createHash ? 'Waiting for confirmations...' :
-                           isCreateConfirming ? 'Confirming transaction...' :
+                          {createWaitingForSignature ? 'Waiting for wallet confirmation...' : 
+                           createWaitingForConfirmations ? 'Waiting for confirmations...' :
+                           createIsConfirming ? 'Confirming transaction...' :
                            demoState === 'creating' ? 'Creating Pool...' : 
                            'Proceed to Purchase →'}
                         </PrimaryButton>
                       </div>
-                      {(demoState === 'creating' || isCreating || isCreateConfirming) && (
+                      {(demoState === 'creating' || createInProgress) && (
                         <div className="text-xs text-[#999999]">
                           <p>Tip: Close MetaMask popup to access navigation buttons</p>
                           <button
@@ -1816,7 +2017,7 @@ export default function App() {
             {demoState === 'purchasing' && (
               <div>
                 {/* Check if already purchased */}
-                {hasAccess === true && (
+                {displayHasAccess === true && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-800 font-semibold flex items-center gap-2">
                       <CheckIcon className="w-5 h-5" />
@@ -1826,7 +2027,16 @@ export default function App() {
                     <div className="mt-4">
                       <PrimaryButton 
                         variant="success"
-                        onClick={() => setDemoState('result')}
+                        onClick={() => {
+                          setDemoState('result');
+                          // Scroll to settlement section after state update
+                          setTimeout(() => {
+                            const settlementSection = document.getElementById('settlement-section');
+                            if (settlementSection) {
+                              settlementSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                          }, 100);
+                        }}
                         className="text-[1.1rem]"
                       >
                         View Settlement →
@@ -1834,7 +2044,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {hasAccess !== true && (
+                {displayHasAccess !== true && (
                   <>
                 <h2 className="mb-2 text-[1.75rem] font-semibold">Step 2: Purchase Package</h2>
                 <p className="text-[#666666] mb-6 text-lg">
@@ -1843,12 +2053,12 @@ export default function App() {
 
                 {/* Transaction Progress */}
                 <TransactionProgress
-                  currentStep={isPurchaseConfirmed ? 3 : (purchaseHash ? 2 : 1)}
+                  currentStep={purchaseIsConfirmed ? 3 : (purchaseHasHash ? 2 : 1)}
                   totalSteps={3}
                   steps={[
-                    { label: 'Approve Payment', status: purchaseHash ? 'completed' : (isPurchasing ? 'active' : 'pending') },
-                    { label: 'Confirm Transaction', status: isPurchaseConfirming ? 'active' : (purchaseHash ? 'completed' : 'pending') },
-                    { label: 'Complete', status: isPurchaseConfirmed ? 'completed' : 'pending' },
+                    { label: 'Approve Payment', status: purchaseHasHash ? 'completed' : (purchaseWaitingForSignature ? 'active' : 'pending') },
+                    { label: 'Confirm Transaction', status: purchaseIsConfirming ? 'active' : (purchaseHasHash ? 'completed' : 'pending') },
+                    { label: 'Complete', status: purchaseIsConfirmed ? 'completed' : 'pending' },
                   ]}
                 />
 
@@ -1874,7 +2084,7 @@ export default function App() {
 
                 {/* Transaction Log */}
                 <div className="mb-6">
-                  <TransactionLog logs={txLogs} chainId={chainId} />
+                  <TransactionLog logs={txLogs} chainId={displayChainId} />
                 </div>
 
                 <div className="text-center mb-8">
@@ -1888,7 +2098,16 @@ export default function App() {
                 <div className="mb-6">
                   <ProtocolStatePanel 
                     poolId={DEMO_POOL.poolId}
-                    enabled={mounted && isConnected}
+                    enabled={mounted && isConnected && !isMockMode}
+                    mockData={isMockMode ? {
+                      price: DEMO_POOL.price,
+                      accessDuration: parseInt(DEMO_POOL.duration, 10),
+                      operatorFeeBps: DEMO_POOL.operatorFeeBps,
+                      members: DEMO_POOL.members.map((member) => ({
+                        serviceId: member.serviceId,
+                        shares: member.shares,
+                      })),
+                    } : undefined}
                   />
                 </div>
 
@@ -1936,7 +2155,7 @@ export default function App() {
                 )}
 
                 <div className="text-center space-y-3">
-                  {!isPurchasing && !isPurchaseConfirming && (
+                  {!purchaseInProgress && (
                     <div className="mb-3 text-sm text-[#666666] bg-[#f8f9fa] rounded-lg p-3 border border-[#e0e0e0]">
                       <span className="font-semibold">Total Payment:</span> {DEMO_POOL.price} ETH + estimated gas fee
                       <br />
@@ -1947,24 +2166,24 @@ export default function App() {
                     <button
                       onClick={handleBackFromPurchase}
                       className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
-                      title={isPurchasing || isPurchaseConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
+                      title={purchaseInProgress ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
                     >
                       ← Back to Step 1
                     </button>
                     <PrimaryButton 
                       variant="success"
                       onClick={handlePurchase}
-                      loading={(isPurchasing || isPurchaseConfirming) && !isPurchaseConfirmed}
-                      disabled={(isPurchasing || isPurchaseConfirming) && !isPurchaseConfirmed}
+                      loading={purchaseInProgress && !purchaseIsConfirmed}
+                      disabled={purchaseInProgress && !purchaseIsConfirmed}
                       className="text-[1.1rem]"
                     >
-                      {isPurchasing && !purchaseHash ? 'Waiting for wallet confirmation...' :
-                       isPurchasing && purchaseHash ? 'Waiting for confirmations...' :
-                       isPurchaseConfirming && !isPurchaseConfirmed ? 'Confirming transaction...' :
+                      {purchaseWaitingForSignature ? 'Waiting for wallet confirmation...' :
+                       purchaseWaitingForConfirmations ? 'Waiting for confirmations...' :
+                       purchaseIsConfirming && !purchaseIsConfirmed ? 'Confirming transaction...' :
                        `Purchase Package (${DEMO_POOL.price} ETH) →`}
                     </PrimaryButton>
                   </div>
-                  {(isPurchasing || isPurchaseConfirming) && (
+                  {purchaseInProgress && (
                     <div className="text-xs text-[#999999]">
                       <div className="flex items-center gap-2">
                         <LightBulbIcon className="w-4 h-4 text-[#999999]" />
@@ -1989,11 +2208,11 @@ export default function App() {
                 {/* Purchase Failure Card */}
                 <div className="mb-6">
                   <PurchaseFailureCard
-                    txHash={purchaseHash || undefined}
+                    txHash={activePurchaseHash || undefined}
                     errorMessage={purchaseErrorMessage}
                     onRetry={() => {
                       // Reset purchase state and retry
-                      if (purchaseHash) {
+                      if (!isMockMode && purchaseHash) {
                         resetPurchase();
                       }
                       setPurchaseErrorMessage(undefined);
@@ -2005,7 +2224,7 @@ export default function App() {
                     }}
                     onBack={() => {
                       // Reset purchase state and go back to created state
-                      if (purchaseHash) {
+                      if (!isMockMode && purchaseHash) {
                         resetPurchase();
                       }
                       setPurchaseErrorMessage(undefined);
@@ -2025,7 +2244,7 @@ export default function App() {
 
             {/* Result State */}
             {demoState === 'result' && (
-              <div>
+              <div id="settlement-section">
                 <h2 className="mb-2 text-[1.75rem] font-semibold">Step 3: View Settlement</h2>
                 <p className="text-[#666666] mb-6 text-lg">
                   See how revenue is automatically distributed to content and infrastructure providers
@@ -2138,11 +2357,11 @@ export default function App() {
                     <button
                       onClick={() => {
                         // Check if user already has access - if so, go to result, otherwise go to purchasing
-                        if (hasAccess === true) {
+                        if (displayHasAccess === true) {
                           setDemoState('result');
                         } else {
                           // Reset purchase state when going back
-                          if (purchaseHash) {
+                          if (!isMockMode && purchaseHash) {
                             resetPurchase();
                           }
                           setDemoState('purchasing');
