@@ -36,4 +36,3 @@ demo/web/.env*.local
 demo/web/.vercel
 demo/web/*.tsbuildinfo
 demo/web/next-env.d.ts
-demo/web/package-lock.json
