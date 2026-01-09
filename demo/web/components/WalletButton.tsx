@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { isMockMode } from '@/config/demoMode';
 
@@ -7,6 +8,22 @@ export function WalletButton() {
   const { address, isConnected } = useAccount();
   const { connectors, connect } = useConnect();
   const { disconnect } = useDisconnect();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch by returning consistent server-side render
+  if (!mounted) {
+    return (
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', color: '#666666' }}>
+          ...
+        </span>
+      </div>
+    );
+  }
 
   // In mock mode, show a demo indicator instead of wallet connection
   if (isMockMode) {

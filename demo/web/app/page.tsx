@@ -64,8 +64,8 @@ export default function HomePage() {
             >
               Select Services →
             </button>
-          </div>
-        </div>
+                </div>
+                </div>
 
         {/* Quick Start Section - Only show in local mode */}
         {!isMockMode && (
@@ -78,24 +78,24 @@ export default function HomePage() {
               <div className="flex items-center gap-2 text-white/90">
                 <span className="font-mono bg-white/20 px-2 py-1 rounded">make anvil-free</span>
                 <span>→ Start local blockchain</span>
-              </div>
+                  </div>
               <div className="flex items-center gap-2 text-white/90">
                 <span className="font-mono bg-white/20 px-2 py-1 rounded">make deploy-local</span>
                 <span>→ Deploy contract (one-time)</span>
-              </div>
-            </div>
+                    </div>
+                  </div>
             <p className="text-white/70 text-xs mt-3">
               After deployment, refresh the page and you&apos;re ready to go!
             </p>
-          </div>
-        )}
+                  </div>
+                )}
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
             <div className="mb-4 text-white">
               <ArtIcon className="w-12 h-12" />
-            </div>
+                  </div>
             <h3 className="text-xl font-semibold text-white mb-2">Art Collections</h3>
             <p className="text-white/80">
               Access rare art collections and precious artifacts from trusted providers
