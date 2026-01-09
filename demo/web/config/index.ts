@@ -34,13 +34,18 @@ export const CONTRACT_ADDRESSES = getContracts();
 // Helper to get registry address based on service ID
 // Service IDs 101-199: ArticleRegistry
 // Service IDs 201-299: RentalRegistry
+// For demo: Use PoolRegistry itself as registry (it implements IServiceRegistry)
 export const getRegistryForService = (serviceId: string): `0x${string}` => {
-  const id = parseInt(serviceId);
-  if (id >= 101 && id < 200) {
-    return CONTRACT_ADDRESSES.ArticleRegistry;
-  } else if (id >= 201 && id < 300) {
-    return CONTRACT_ADDRESSES.RentalRegistry;
-  }
-  // Default to PoolRegistry for unknown service IDs
+  // For demo: All services are registered in PoolRegistry, so use it as the registry
+  // In production, you would use actual ArticleRegistry and RentalRegistry addresses
   return CONTRACT_ADDRESSES.PoolRegistry;
+  
+  // Production code (commented out for demo):
+  // const id = parseInt(serviceId);
+  // if (id >= 101 && id < 200) {
+  //   return CONTRACT_ADDRESSES.ArticleRegistry;
+  // } else if (id >= 201 && id < 300) {
+  //   return CONTRACT_ADDRESSES.RentalRegistry;
+  // }
+  // return CONTRACT_ADDRESSES.PoolRegistry;
 };
