@@ -27,3 +27,13 @@ forge-out/
 PR_*.md
 DESIGN_QUESTIONS_ANALYSIS.md
 DESIGN_ASSUMPTIONS_ANALYSIS.md
+
+# Web UI build artifacts and dependencies
+demo/web/node_modules/
+demo/web/.next/
+demo/web/out/
+demo/web/.env*.local
+demo/web/.vercel
+demo/web/*.tsbuildinfo
+demo/web/next-env.d.ts
+demo/web/package-lock.json

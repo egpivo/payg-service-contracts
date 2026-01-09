@@ -2,7 +2,15 @@
 [![CI](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/egpivo/payg-service-contracts/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/egpivo/payg-service-contracts/graph/badge.svg?token=Svpf1dEEyh)](https://codecov.io/gh/egpivo/payg-service-contracts)
 
-A Solidity base contract for pay-as-you-go services with example implementations.
+## What this repo is
+
+This repository implements a Pay-As-You-Go (PAYG) protocol with
+composable Pool primitives.
+
+It includes:
+- Protocol-level Solidity contracts
+- Reference implementations for articles and rentals
+- A minimal Web UI (`/demo`) to demonstrate end-to-end usage
 
 ## Architecture
 
@@ -30,6 +38,13 @@ A Solidity base contract for pay-as-you-go services with example implementations
   - **Payee Membership**: Providers form alliances with revenue sharing
   - Works with any service type via IServiceRegistry interface
   - Supports weighted revenue splitting, fees (operator/affiliate), and access management
+
+### Demo
+- **Web UI** (`/demo/web`) - Next.js demo application demonstrating:
+  - Create pool
+  - Purchase pool
+  - Inspect earnings / access
+  - See `demo/WEB_UI_USAGE.md` for detailed usage instructions
 
 ## Features
 - Register a service with an ID and price

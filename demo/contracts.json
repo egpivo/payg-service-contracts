@@ -1,0 +1,20 @@
+{
+  "description": "Deployed contract addresses for PAYG Protocol demo",
+  "networks": {
+    "localhost": {
+      "chainId": 31337,
+      "rpcUrl": "http://localhost:8545",
+      "contracts": {
+        "PoolRegistry": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "sepolia": {
+      "chainId": 11155111,
+      "rpcUrl": "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
+      "contracts": {
+        "PoolRegistry": "0x0000000000000000000000000000000000000000"
+      }
+    }
+  }
+}
+
