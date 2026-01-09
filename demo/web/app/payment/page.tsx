@@ -1428,16 +1428,22 @@ export default function App() {
                 </div>
               </section>
 
-              {!isConnected ? (
-                <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)] text-center">
-                  <p className="text-[#666666] text-lg">Please connect your wallet to proceed with checkout.</p>
+              {/* Wallet Connection Banner - Show if not connected */}
+              {!isConnected && (
+                <section className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6 text-center">
+                  <p className="text-yellow-800 font-semibold text-lg mb-2">
+                    ⚠️ Wallet Not Connected
+                  </p>
+                  <p className="text-yellow-700 text-sm">
+                    Please connect your wallet to proceed with checkout. You can still view package details below.
+                  </p>
                 </section>
-              ) : (
-                <>
-                {/* System Status */}
-                <SystemStatus />
+              )}
 
-                <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+              {/* System Status - Only show if connected */}
+              {isConnected && <SystemStatus />}
+
+              <section className="bg-white rounded-xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
             <div className="space-y-8">
             {/* Intro State */}
             {demoState === 'intro' && (
