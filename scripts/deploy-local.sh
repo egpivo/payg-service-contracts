@@ -82,32 +82,75 @@ echo "5. 注册演示服务..."
 # Check if cast is available, if not use forge script
 if command -v cast &> /dev/null; then
   echo "   Using cast to register services..."
-  cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,uint256)" \
+  
+  # Register service 101: Rare Art Collection (0.5 ETH)
+  echo "   正在注册服务 101..."
+  RESULT101=$(cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,address,uint256)" \
       101 \
+      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.5 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 101 已注册" || echo "   ⚠ 服务 101 注册失败"
+      --broadcast 2>&1)
+  
+  if echo "$RESULT101" | grep -q "transactionHash"; then
+    TX_HASH101=$(echo "$RESULT101" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+    echo "   ✓ 服务 101 已注册 (Tx: ${TX_HASH101:0:10}...)"
+  else
+    echo "   ✗ 服务 101 注册失败:"
+    echo "$RESULT101" | tail -5
+    echo "   请检查错误信息"
+  fi
 
-  cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,uint256)" \
+  # Register service 201: Luxury Hotel Space (0.33 ETH)
+  echo "   正在注册服务 201..."
+  RESULT201=$(cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,address,uint256)" \
       201 \
+      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.33 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 201 已注册" || echo "   ⚠ 服务 201 注册失败"
+      --broadcast 2>&1)
+  
+  if echo "$RESULT201" | grep -q "transactionHash"; then
+    TX_HASH201=$(echo "$RESULT201" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+    echo "   ✓ 服务 201 已注册 (Tx: ${TX_HASH201:0:10}...)"
+  else
+    echo "   ✗ 服务 201 注册失败:"
+    echo "$RESULT201" | tail -5
+    echo "   请检查错误信息"
+  fi
 
-  cast send $CONTRACT_ADDRESS \
-      "registerService(uint256,uint256)" \
+  # Register service 202: Premium Security Service (0.17 ETH)
+  echo "   正在注册服务 202..."
+  RESULT202=$(cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,address,uint256)" \
       202 \
+      0x0000000000000000000000000000000000000000 \
       $(cast --to-wei 0.17 ether) \
       --rpc-url http://localhost:8545 \
       --private-key $DEPLOYER_PRIVATE_KEY \
-      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 202 已注册" || echo "   ⚠ 服务 202 注册失败"
+      --broadcast 2>&1)
+  
+  if echo "$RESULT202" | grep -q "transactionHash"; then
+    TX_HASH202=$(echo "$RESULT202" | grep "transactionHash" | sed 's/.*transactionHash: //' | head -1)
+    echo "   ✓ 服务 202 已注册 (Tx: ${TX_HASH202:0:10}...)"
+  else
+    echo "   ✗ 服务 202 注册失败:"
+    echo "$RESULT202" | tail -5
+    echo "   请检查错误信息"
+  fi
+  
+  echo ""
+  echo "   验证服务注册状态..."
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 101 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 101 验证成功" || echo "   ⚠ 服务 101 验证失败"
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 201 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 201 验证成功" || echo "   ⚠ 服务 201 验证失败"
+  cast call $CONTRACT_ADDRESS "getService(uint256)" 202 --rpc-url http://localhost:8545 | grep -q "true" && echo "   ✓ 服务 202 验证成功" || echo "   ⚠ 服务 202 验证失败"
 else
   echo "   ⚠ cast 命令不可用，跳过服务注册"
-  echo "   提示: 可以手动调用 registerService(101, 500000000000000000) 等来注册服务"
+  echo "   提示: 可以手动调用 registerService(101, address(0), 500000000000000000) 等来注册服务"
   echo "   或者安装 foundry: curl -L https://foundry.paradigm.xyz | bash"
 fi
 
