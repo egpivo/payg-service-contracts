@@ -370,6 +370,20 @@ export default function App() {
       return;
     }
     
+    // CRITICAL: Wait for DEMO_POOL to be loaded from sessionStorage
+    // Check if members array is populated (not empty)
+    if (DEMO_POOL.members.length === 0) {
+      console.log('[AUTO-CREATE] BLOCKED: DEMO_POOL.members is empty, waiting for config to load...');
+      return;
+    }
+    
+    // Validate price is set
+    const priceNum = parseFloat(DEMO_POOL.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      console.log('[AUTO-CREATE] BLOCKED: Invalid price:', DEMO_POOL.price);
+      return;
+    }
+    
     if (mounted && isConnected && demoState === 'intro') {
       const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
       const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
@@ -377,14 +391,34 @@ export default function App() {
       if (goToCheckout && hasSelectedConfig && (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId))) {
         // Pool doesn't exist, auto-create it
         if (!isCreating && !createHash) {
-          console.log('[AUTO-CREATE] Starting auto-creation');
+          console.log('[AUTO-CREATE] Starting auto-creation', {
+            membersCount: DEMO_POOL.members.length,
+            price: DEMO_POOL.price,
+            serviceIds: DEMO_POOL.members.map(m => m.serviceId)
+          });
+          
           // Clear any previous failure flags
           createFailedRef.current = false;
           createFailedHashRef.current = null;
-          setDemoState('creating');
+          
           const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
           const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
           const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+          
+          // Double-check arrays are not empty
+          if (serviceIds.length === 0 || registries.length === 0 || shares.length === 0) {
+            console.error('[AUTO-CREATE] ERROR: Empty arrays!', {
+              serviceIds: serviceIds.length,
+              registries: registries.length,
+              shares: shares.length,
+              members: DEMO_POOL.members
+            });
+            addLog('error', 'Invalid pool configuration: empty service arrays');
+            return;
+          }
+          
+          setDemoState('creating');
+          addLog('info', `Auto-creating pool with ${DEMO_POOL.members.length} services, price: ${DEMO_POOL.price} ETH`);
 
           try {
             writeCreate({
@@ -402,6 +436,7 @@ export default function App() {
               ],
             });
           } catch (error: any) {
+            console.error('[AUTO-CREATE] Failed to send transaction:', error);
             addLog('error', `Failed to send transaction: ${error?.message || 'Unknown error'}`);
             createFailedRef.current = true;
             setDemoState('intro');
