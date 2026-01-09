@@ -1161,6 +1161,13 @@ export default function App() {
       return;
     }
     
+    // Validate price
+    const priceNum = parseFloat(DEMO_POOL.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      addLog('error', `Invalid price: ${DEMO_POOL.price}. Please select services first.`);
+      return;
+    }
+    
     // Clear any previous failure flags
     createFailedRef.current = false;
     createFailedHashRef.current = null;
@@ -1173,12 +1180,28 @@ export default function App() {
     } else {
       // Pool doesn't exist, create it first (will auto-purchase after creation)
       addLog('info', 'Pool does not exist, creating pool...');
-      addLog('info', 'Requesting wallet signature for createPool');
-      setShouldAutoPurchase(true);
-      setDemoState('creating');
+      addLog('info', `Creating pool with ${DEMO_POOL.members.length} services, price: ${DEMO_POOL.price} ETH`);
+      
       const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
       const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
       const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+      
+      // Double-check arrays are not empty
+      if (serviceIds.length === 0 || registries.length === 0 || shares.length === 0) {
+        addLog('error', `Invalid pool configuration: serviceIds=${serviceIds.length}, registries=${registries.length}, shares=${shares.length}`);
+        console.error('[CREATE POOL] Invalid state:', { 
+          members: DEMO_POOL.members, 
+          serviceIds, 
+          registries, 
+          shares,
+          price: DEMO_POOL.price 
+        });
+        return;
+      }
+
+      setShouldAutoPurchase(true);
+      setDemoState('creating');
+      addLog('info', 'Requesting wallet signature for createPool');
 
       try {
         await writeCreate({
