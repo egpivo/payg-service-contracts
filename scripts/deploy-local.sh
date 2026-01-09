@@ -74,38 +74,42 @@ EOF
 echo ""
 echo "5. 注册演示服务..."
 
-# Register demo services in PoolRegistry
+# Register demo services in PoolRegistry using forge script (more reliable than cast)
 # Service 101: Rare Art Collection (0.5 ETH)
 # Service 201: Luxury Hotel Space (0.33 ETH)  
 # Service 202: Premium Security Service (0.17 ETH)
 
-cast send $CONTRACT_ADDRESS \
-    "registerService(uint256,uint256)" \
-    101 \
-    $(cast --to-wei 0.5 ether) \
-    --rpc-url http://localhost:8545 \
-    --private-key $DEPLOYER_PRIVATE_KEY \
-    --broadcast > /dev/null 2>&1
+# Check if cast is available, if not use forge script
+if command -v cast &> /dev/null; then
+  echo "   Using cast to register services..."
+  cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,uint256)" \
+      101 \
+      $(cast --to-wei 0.5 ether) \
+      --rpc-url http://localhost:8545 \
+      --private-key $DEPLOYER_PRIVATE_KEY \
+      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 101 已注册" || echo "   ⚠ 服务 101 注册失败"
 
-cast send $CONTRACT_ADDRESS \
-    "registerService(uint256,uint256)" \
-    201 \
-    $(cast --to-wei 0.33 ether) \
-    --rpc-url http://localhost:8545 \
-    --private-key $DEPLOYER_PRIVATE_KEY \
-    --broadcast > /dev/null 2>&1
+  cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,uint256)" \
+      201 \
+      $(cast --to-wei 0.33 ether) \
+      --rpc-url http://localhost:8545 \
+      --private-key $DEPLOYER_PRIVATE_KEY \
+      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 201 已注册" || echo "   ⚠ 服务 201 注册失败"
 
-cast send $CONTRACT_ADDRESS \
-    "registerService(uint256,uint256)" \
-    202 \
-    $(cast --to-wei 0.17 ether) \
-    --rpc-url http://localhost:8545 \
-    --private-key $DEPLOYER_PRIVATE_KEY \
-    --broadcast > /dev/null 2>&1
-
-echo "   ✓ 服务 101 (Rare Art Collection) 已注册"
-echo "   ✓ 服务 201 (Luxury Hotel Space) 已注册"
-echo "   ✓ 服务 202 (Premium Security Service) 已注册"
+  cast send $CONTRACT_ADDRESS \
+      "registerService(uint256,uint256)" \
+      202 \
+      $(cast --to-wei 0.17 ether) \
+      --rpc-url http://localhost:8545 \
+      --private-key $DEPLOYER_PRIVATE_KEY \
+      --broadcast 2>&1 | grep -q "transactionHash" && echo "   ✓ 服务 202 已注册" || echo "   ⚠ 服务 202 注册失败"
+else
+  echo "   ⚠ cast 命令不可用，跳过服务注册"
+  echo "   提示: 可以手动调用 registerService(101, 500000000000000000) 等来注册服务"
+  echo "   或者安装 foundry: curl -L https://foundry.paradigm.xyz | bash"
+fi
 
 echo ""
 echo "=== 部署完成 ==="

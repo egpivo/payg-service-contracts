@@ -54,17 +54,13 @@ interface PoolMember {
 }
 
 // Default pool configuration
-// Demonstrates cross-registry composition: ArticleRegistry (#101) + RentalRegistry (#201, #202)
+// Empty by default - user must select services from /select page
 const DEFAULT_POOL = {
   poolId: '42',
-  price: '1',
+  price: '0',
   duration: '604800', // 7 days
   operatorFeeBps: '200', // 2%
-  members: [
-    { serviceId: '101', registry: getRegistryForService('101'), shares: '3', name: 'Rare Art Collection' },
-    { serviceId: '201', registry: getRegistryForService('201'), shares: '2', name: 'Luxury Hotel Space' },
-    { serviceId: '202', registry: getRegistryForService('202'), shares: '1', name: 'Premium Security Service' },
-  ],
+  members: [], // Empty by default - must select services
 };
 
 type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result' | 'purchase_failed';
