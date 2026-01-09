@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
+const isGhPages = process.env.NEXT_PUBLIC_DEPLOY_TARGET === 'github';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const nextConfig = {
   reactStrictMode: true,
+  // GitHub Pages configuration
+  ...(isGhPages && {
+    output: 'export',
+    trailingSlash: true,
+    basePath: basePath,
+    assetPrefix: basePath,
+    images: {
+      unoptimized: true,
+    },
+  }),
   // Allow cross-origin requests from 127.0.0.1 in development
   // This prevents the warning when accessing via 127.0.0.1 instead of localhost
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
