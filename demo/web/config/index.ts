@@ -1,4 +1,5 @@
 import contracts from '../../contracts.json';
+import { isMockMode } from './demoMode';
 
 // Fix TypeScript type issue
 type ContractsConfig = {
@@ -18,6 +19,15 @@ const contractsConfig = contracts as ContractsConfig;
 // Get contract addresses from contracts.json
 // In production, you might want to select based on chainId
 const getContracts = () => {
+  // In mock mode, use dummy addresses (they won't be used anyway)
+  if (isMockMode) {
+    return {
+      PoolRegistry: '0x1111111111111111111111111111111111111111' as `0x${string}`,
+      ArticleRegistry: '0x1111111111111111111111111111111111111111' as `0x${string}`,
+      RentalRegistry: '0x2222222222222222222222222222222222222222' as `0x${string}`,
+    };
+  }
+  
   // Default to localhost for development
   const network = contractsConfig.networks.localhost;
   return {

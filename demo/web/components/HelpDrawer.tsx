@@ -7,7 +7,7 @@ import { FlowStep } from './FlowStep';
 interface HelpDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  transactionState?: 'intro' | 'creating' | 'created' | 'purchasing' | 'result';
+  transactionState?: 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result' | 'purchase_failed';
 }
 
 export function HelpDrawer({ isOpen, onClose, transactionState }: HelpDrawerProps) {
