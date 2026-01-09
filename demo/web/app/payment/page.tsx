@@ -368,6 +368,12 @@ export default function App() {
 
   // Auto-create pool if coming from selection page and pool doesn't exist
   useEffect(() => {
+    // Don't auto-create if we just came from a failed state
+    if (createFailedRef.current) {
+      console.log('[AUTO-CREATE] BLOCKED: createFailedRef is true');
+      return;
+    }
+    
     if (mounted && isConnected && demoState === 'intro') {
       const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
       const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
@@ -375,6 +381,10 @@ export default function App() {
       if (goToCheckout && hasSelectedConfig && (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId))) {
         // Pool doesn't exist, auto-create it
         if (!isCreating && !createHash) {
+          console.log('[AUTO-CREATE] Starting auto-creation');
+          // Clear any previous failure flags
+          createFailedRef.current = false;
+          createFailedHashRef.current = null;
           setDemoState('creating');
           const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
           const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
@@ -397,6 +407,7 @@ export default function App() {
             });
           } catch (error: any) {
             addLog('error', `Failed to send transaction: ${error?.message || 'Unknown error'}`);
+            createFailedRef.current = true;
             setDemoState('intro');
           }
         }
@@ -1584,10 +1595,20 @@ export default function App() {
                         <button
                           onClick={() => {
                             // Reset everything and go back to start
+                            console.log('[BACK TO START] Resetting state');
                             createFailedRef.current = false;
                             createFailedHashRef.current = null;
                             resetCreate();
+                            // Clear sessionStorage flags that might trigger auto-creation
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.removeItem('goToCheckout');
+                            }
+                            // Set state to intro and prevent auto-creation
                             setDemoState('intro');
+                            // Navigate to home to fully reset
+                            setTimeout(() => {
+                              router.push('/');
+                            }, 100);
                           }}
                           className="px-6 py-3 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
                         >
