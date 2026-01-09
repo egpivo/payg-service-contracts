@@ -1,15 +1,20 @@
 'use client';
 
+import { useState } from 'react';
+import { LightBulbIcon } from './Icons';
+
 interface TransactionProgressProps {
   currentStep: number;
   totalSteps: number;
   steps: {
     label: string;
     status: 'pending' | 'active' | 'completed' | 'error';
+    tooltip?: string;
   }[];
 }
 
 export function TransactionProgress({ currentStep, totalSteps, steps }: TransactionProgressProps) {
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20 mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -58,7 +63,7 @@ export function TransactionProgress({ currentStep, totalSteps, steps }: Transact
                     stepNumber
                   )}
                 </div>
-                <div className="mt-2 text-center">
+                <div className="mt-2 text-center relative">
                   <div
                     className={`text-xs font-medium ${
                       isActive || isCompleted
@@ -67,9 +72,20 @@ export function TransactionProgress({ currentStep, totalSteps, steps }: Transact
                         ? 'text-red-600'
                         : 'text-[#999999]'
                     }`}
+                    onMouseEnter={() => step.tooltip && setHoveredStep(index)}
+                    onMouseLeave={() => setHoveredStep(null)}
                   >
                     {step.label}
                   </div>
+                  {step.tooltip && hoveredStep === index && (
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-64 bg-[#1a1a1a] text-white text-xs rounded-lg p-3 shadow-xl z-10">
+                      <div className="flex items-start gap-2">
+                        <LightBulbIcon className="w-4 h-4 text-[#667eea] mt-0.5 flex-shrink-0" />
+                        <p>{step.tooltip}</p>
+                      </div>
+                      <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#1a1a1a] rotate-45" />
+                    </div>
+                  )}
                 </div>
               </div>
             );

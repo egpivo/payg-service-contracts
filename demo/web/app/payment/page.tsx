@@ -14,7 +14,8 @@ import { ActivityPanel, ActivityItem, ActivityStatus } from '@/components/Activi
 import { EventLogPanel, EventLog } from '@/components/EventLogPanel';
 import { ProtocolStatePanel } from '@/components/ProtocolStatePanel';
 import { BeforeAfterPanel } from '@/components/BeforeAfterPanel';
-import { TabNavigation } from '@/components/TabNavigation';
+import { HelpDrawer } from '@/components/HelpDrawer';
+import { ProtocolBenefitCard } from '@/components/ProtocolBenefitCard';
 import { DeveloperToggle } from '@/components/DeveloperToggle';
 import { TransactionLog, TransactionLogEntry, LogLevel } from '@/components/TransactionLog';
 import { TransactionProgress } from '@/components/TransactionProgress';
@@ -1486,6 +1487,10 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+                
+                {/* Protocol Benefit Card */}
+                <ProtocolBenefitCard className="mb-6" />
+                </>
               )}
 
               {/* Wallet Connection Banner - Show if not connected */}
@@ -2134,8 +2139,7 @@ export default function App() {
           </div>
         </section>
             </div>
-          }
-          help={
+          </div>
             <div className="space-y-8">
               {/* Product Flow Section */}
               <section className="bg-[#f8f9fa] rounded-lg p-8">
