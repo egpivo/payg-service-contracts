@@ -1496,9 +1496,15 @@ export default function App() {
                       <PrimaryButton 
                         onClick={handleStartDemo}
                         className="text-[1.1rem]"
+                        disabled={!isConnected}
                       >
-                        Create Package
+                        {!isConnected ? 'Connect Wallet to Create Package' : 'Create Package'}
                       </PrimaryButton>
+                      {!isConnected && (
+                        <p className="text-sm text-[#999999] mt-3">
+                          You need to connect your wallet to create a package
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -2067,8 +2073,6 @@ export default function App() {
             )}
           </div>
         </section>
-                </>
-              )}
             </div>
           }
           help={
