@@ -1453,13 +1453,26 @@ export default function App() {
           <NetworkSwitchButton targetChainId={31337} targetChainName="Localhost 8545" />
         )}
 
-        {/* Tab Navigation */}
-          <TabNavigation
-            checkout={
-            <div className="max-w-4xl mx-auto">
-              {/* Package Header - Only show if services are selected */}
-              {DEMO_POOL.members.length > 0 && (
-                <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-8 text-white">
+        {/* Help Drawer */}
+        <HelpDrawer isOpen={helpDrawerOpen} onClose={() => setHelpDrawerOpen(false)} />
+
+        {/* Main Content */}
+        <div className="max-w-4xl mx-auto">
+          {/* Help Link */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setHelpDrawerOpen(true)}
+              className="flex items-center gap-2 text-sm text-[#667eea] hover:text-[#5568d3] font-medium transition-colors"
+            >
+              <LightBulbIcon className="w-4 h-4" />
+              How it works
+            </button>
+          </div>
+
+          {/* Package Header - Only show if services are selected */}
+          {DEMO_POOL.members.length > 0 && (
+            <>
+            <section className="bg-gradient-to-r from-[#667eea] to-[#764ba2] rounded-xl p-8 mb-6 text-white">
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
