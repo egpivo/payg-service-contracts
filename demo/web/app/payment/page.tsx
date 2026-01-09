@@ -26,6 +26,7 @@ import { SystemStatus } from '@/components/SystemStatus';
 import PoolRegistryABI from '@/abis/PoolRegistryABI.json';
 import { CONTRACT_ADDRESSES, getRegistryForService } from '@/config';
 import { getServiceIcon, CheckIcon, LightBulbIcon } from '@/components/Icons';
+import { isMockMode } from '@/config/demoMode';
 
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
@@ -83,6 +84,7 @@ export default function App() {
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
   const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const isDemoConnected = isMockMode ? true : isConnected;
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
@@ -1131,10 +1133,14 @@ export default function App() {
         <section className="bg-white rounded-lg p-6 mb-8 flex items-center justify-between border border-[#e0e0e0]">
           <div className="flex items-center gap-4">
             <div>
-              {isConnected ? (
+              {isDemoConnected ? (
                 <div>
-                  <span className="text-[#666666] text-[0.85rem]">Connected:</span>
-                  <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                  <span className="text-[#666666] text-[0.85rem]">
+                    {isMockMode ? 'Demo Mode' : 'Connected:'}
+                  </span>
+                  {!isMockMode && address && (
+                    <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                  )}
                 </div>
               ) : (
                 <span className="text-[#666666]">Not connected</span>
