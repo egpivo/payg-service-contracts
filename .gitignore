@@ -28,6 +28,12 @@ PR_*.md
 DESIGN_QUESTIONS_ANALYSIS.md
 DESIGN_ASSUMPTIONS_ANALYSIS.md
 
+# Demo documentation (local only)
+demo/*.md
+demo/*.sh
+!demo/CONCRETE_EXAMPLE.md
+!demo/web/README.md
+
 # Web UI build artifacts and dependencies
 demo/web/node_modules/
 demo/web/.next/

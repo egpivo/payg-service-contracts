@@ -69,7 +69,6 @@ make deploy-local    # Deploy contracts only
 make web-dev         # Start Web UI only
 ```
 
-See [demo/LOCAL_SETUP.md](demo/LOCAL_SETUP.md) for detailed setup.
 
 #### Online Demo (no wallet required)
 
