@@ -40,11 +40,42 @@ It includes:
   - Supports weighted revenue splitting, fees (operator/affiliate), and access management
 
 ### Demo
-- **Web UI** (`/demo/web`) - Next.js demo application demonstrating:
-  - Create pool
-  - Purchase pool
-  - Inspect earnings / access
-  - See `demo/WEB_UI_USAGE.md` for detailed usage instructions
+- **Web UI** (`/demo/web`) - Next.js demo demonstrating pool creation, purchase, and revenue distribution
+
+#### Local Demo (with wallet)
+
+Quick start:
+```bash
+make demo  # Starts Anvil + deploys contracts + runs Web UI
+```
+
+This automatically:
+1. Starts Anvil local blockchain (zero gas fees, http://localhost:8545, Chain ID: 31337)
+2. Deploys contracts to local network
+3. Starts Next.js dev server at http://localhost:3000
+
+**Wallet setup** (first time only):
+- Add localhost network to MetaMask:
+  - Network Name: `Localhost 8545`
+  - RPC URL: `http://localhost:8545`
+  - Chain ID: `31337`
+  - Currency Symbol: `ETH`
+- Import test account from Anvil output (10000 test ETH)
+
+**Manual steps** (if needed):
+```bash
+make anvil-free      # Start Anvil only
+make deploy-local    # Deploy contracts only
+make web-dev         # Start Web UI only
+```
+
+See [demo/LOCAL_SETUP.md](demo/LOCAL_SETUP.md) for detailed setup.
+
+#### Online Demo (no wallet required)
+
+Live demo with mock mode: https://egpivo.github.io/payg-service-contracts/
+
+Mock mode simulates transactions without requiring wallet connection or blockchain access.
 
 ## Features
 - Register a service with an ID and price
