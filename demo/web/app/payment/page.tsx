@@ -655,6 +655,9 @@ export default function App() {
       
       if (isReverted) {
         // Transaction was confirmed but reverted
+        createFailedRef.current = true;
+        createFailedHashRef.current = createReceipt.transactionHash;
+        console.log('[CREATE FAILED] Transaction reverted:', createReceipt.transactionHash);
         setActivities(prev => prev.map(act => 
           act.txHash === createReceipt.transactionHash 
             ? { ...act, status: 'failed' as ActivityStatus, error: 'Transaction reverted', blockNumber: createReceipt.blockNumber, gasUsed: createReceipt.gasUsed }
@@ -666,8 +669,9 @@ export default function App() {
           gasUsed: createReceipt.gasUsed,
           blockNumber: createReceipt.blockNumber,
         });
-        // Don't reset to intro - stay in creating state so user can see the error
-        // setDemoState('creating'); // Already in creating state
+        // Reset create state so user can retry
+        resetCreate();
+        // Stay in creating state so user can see the error and retry
         return; // Don't process events if reverted
       }
       
@@ -706,6 +710,10 @@ export default function App() {
 
   useEffect(() => {
     if (createHash && isCreateError) {
+      // Mark as failed
+      createFailedRef.current = true;
+      createFailedHashRef.current = createHash;
+      console.log('[CREATE FAILED] Transaction error:', createHash);
       // Find and update activity in a single setActivities call to avoid race condition
       setActivities(prev => prev.map(act => 
         act.txHash === createHash 
@@ -716,11 +724,11 @@ export default function App() {
         txHash: createHash,
         status: 'reverted',
       });
-      // Don't reset to intro - stay in creating state so user can see the error and retry
-      // The user can manually go back or retry
-      // setDemoState('intro'); // REMOVED - don't reset state
+      // Reset create state so user can retry
+      resetCreate();
+      // Stay in creating state so user can see the error and retry
     }
-  }, [createHash, isCreateError, updateActivity, addLog]);
+  }, [createHash, isCreateError, updateActivity, addLog, resetCreate]);
 
   // Track purchase transaction
   useEffect(() => {
@@ -1545,39 +1553,107 @@ export default function App() {
                 )}
 
                 <div className="text-center space-y-3">
-                  <div className="flex items-center justify-center gap-4 mb-2">
-                    {demoState === 'created' && (
-                      <button
-                        onClick={handleBackFromCreate}
-                        className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
-                        title={isCreating || isCreateConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
-                      >
-                        ← Back to Start
-                      </button>
-                    )}
-                    <PrimaryButton 
-                      onClick={() => setDemoState('purchasing')}
-                      loading={demoState === 'creating' || isCreating || isCreateConfirming}
-                      disabled={demoState === 'creating' || isCreating || isCreateConfirming}
-                      className="text-[1.1rem]"
-                    >
-                      {isCreating && !createHash ? 'Waiting for wallet confirmation...' : 
-                       isCreating && createHash ? 'Waiting for confirmations...' :
-                       isCreateConfirming ? 'Confirming transaction...' :
-                       demoState === 'creating' ? 'Creating Pool...' : 
-                       'Proceed to Purchase →'}
-                    </PrimaryButton>
-                  </div>
-                  {(demoState === 'creating' || isCreating || isCreateConfirming) && (
-                    <div className="text-xs text-[#999999]">
-                      <p>Tip: Close MetaMask popup to access navigation buttons</p>
-                      <button
-                        onClick={handleReset}
-                        className="text-sm text-[#666666] hover:text-[#333333] underline mt-1"
-                      >
-                        Cancel / Reset
-                      </button>
+                  {/* Check if create failed */}
+                  {(createFailedRef.current || isCreateError || (createReceipt && createReceipt.status === 'reverted')) ? (
+                    <div className="space-y-4">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <XIcon className="w-5 h-5 text-red-600" />
+                          <h3 className="text-lg font-semibold text-red-800">Package Creation Failed</h3>
+                        </div>
+                        <p className="text-sm text-red-700 mb-2">
+                          The transaction failed or was reverted. Please check the transaction details below and try again.
+                        </p>
+                        {createFailedHashRef.current && (
+                          <div className="text-xs text-red-600 font-mono break-all">
+                            Tx: {createFailedHashRef.current}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-center gap-4">
+                        <button
+                          onClick={() => {
+                            // Reset everything and go back to start
+                            createFailedRef.current = false;
+                            createFailedHashRef.current = null;
+                            resetCreate();
+                            setDemoState('intro');
+                          }}
+                          className="px-6 py-3 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+                        >
+                          ← Back to Start
+                        </button>
+                        <PrimaryButton
+                          onClick={() => {
+                            // Reset and retry
+                            createFailedRef.current = false;
+                            createFailedHashRef.current = null;
+                            resetCreate();
+                            setDemoState('creating');
+                            // Trigger create again
+                            const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
+                            const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
+                            const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+                            setTimeout(() => {
+                              writeCreate({
+                                address: CONTRACT_ADDRESSES.PoolRegistry,
+                                abi: PoolRegistryABI,
+                                functionName: 'createPool',
+                                args: [
+                                  BigInt(DEMO_POOL.poolId),
+                                  serviceIds,
+                                  registries,
+                                  shares,
+                                  parseEther(DEMO_POOL.price),
+                                  BigInt(DEMO_POOL.duration),
+                                  parseInt(DEMO_POOL.operatorFeeBps),
+                                ],
+                              });
+                            }, 100);
+                          }}
+                          className="text-[1.1rem]"
+                        >
+                          Try Again →
+                        </PrimaryButton>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center gap-4 mb-2">
+                        {demoState === 'created' && (
+                          <button
+                            onClick={handleBackFromCreate}
+                            className="px-4 py-2 text-sm text-[#666666] hover:text-[#333333] border border-[#e0e0e0] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+                            title={isCreating || isCreateConfirming ? "This will cancel the transaction. Please reject it in MetaMask if popup is open." : ""}
+                          >
+                            ← Back to Start
+                          </button>
+                        )}
+                        <PrimaryButton 
+                          onClick={() => setDemoState('purchasing')}
+                          loading={demoState === 'creating' || isCreating || isCreateConfirming}
+                          disabled={demoState === 'creating' || isCreating || isCreateConfirming}
+                          className="text-[1.1rem]"
+                        >
+                          {isCreating && !createHash ? 'Waiting for wallet confirmation...' : 
+                           isCreating && createHash ? 'Waiting for confirmations...' :
+                           isCreateConfirming ? 'Confirming transaction...' :
+                           demoState === 'creating' ? 'Creating Pool...' : 
+                           'Proceed to Purchase →'}
+                        </PrimaryButton>
+                      </div>
+                      {(demoState === 'creating' || isCreating || isCreateConfirming) && (
+                        <div className="text-xs text-[#999999]">
+                          <p>Tip: Close MetaMask popup to access navigation buttons</p>
+                          <button
+                            onClick={handleReset}
+                            className="text-sm text-[#666666] hover:text-[#333333] underline mt-1"
+                          >
+                            Cancel / Reset
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
