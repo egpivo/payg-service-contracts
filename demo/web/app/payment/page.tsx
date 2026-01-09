@@ -67,7 +67,7 @@ const DEFAULT_POOL = {
   ],
 };
 
-type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result';
+type DemoState = 'intro' | 'creating' | 'created' | 'purchasing' | 'purchased' | 'result' | 'purchase_failed';
 
 export default function App() {
   const router = useRouter();
@@ -84,7 +84,28 @@ export default function App() {
   const manualCheckTimeout = useRef<NodeJS.Timeout | null>(null);
   const createPollingTimeouts = useRef<NodeJS.Timeout[]>([]);
   const purchasePollingTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const mockTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const purchaseReceiptFound = useRef<Set<string>>(new Set());
+  const purchaseCompletedRef = useRef<boolean>(false);
+  const createFailedRef = useRef<boolean>(false);
+  const createFailedHashRef = useRef<string | null>(null);
+  const [mockCreatePhase, setMockCreatePhase] = useState<'idle' | 'signing' | 'pending' | 'confirmed'>('idle');
+  const [mockPurchasePhase, setMockPurchasePhase] = useState<'idle' | 'signing' | 'pending' | 'confirmed'>('idle');
+  const [mockCreateHash, setMockCreateHash] = useState<string | null>(null);
+  const [mockPurchaseHash, setMockPurchaseHash] = useState<string | null>(null);
   const isDemoConnected = isMockMode ? true : isConnected;
+
+  const makeMockHash = useCallback(() => {
+    const bytes = new Uint8Array(32);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }, []);
 
   // Load selected configuration from sessionStorage (client-side only)
   const [DEMO_POOL, setDEMO_POOL] = useState(DEFAULT_POOL);
@@ -156,7 +177,7 @@ export default function App() {
     useWaitForTransactionReceipt({ 
       hash: createHash,
       query: {
-        enabled: !!createHash,
+        enabled: !!createHash && !isMockMode,
         retry: 3,
         retryDelay: 1000,
       },
@@ -165,14 +186,37 @@ export default function App() {
     useWaitForTransactionReceipt({ 
       hash: purchaseHash,
       query: {
-        enabled: !!purchaseHash,
+        enabled: !!purchaseHash && !isMockMode,
         retry: 3,
         retryDelay: 1000,
       },
     });
 
+  const activeCreateHash = isMockMode ? mockCreateHash : createHash;
+  const activePurchaseHash = isMockMode ? mockPurchaseHash : purchaseHash;
+  const createHasHash = !!activeCreateHash;
+  const purchaseHasHash = !!activePurchaseHash;
+  const createWaitingForSignature = isMockMode ? mockCreatePhase === 'signing' : (isCreating && !createHash);
+  const createWaitingForConfirmations = isMockMode ? mockCreatePhase === 'pending' : (isCreating && !!createHash);
+  const createIsConfirming = isMockMode ? mockCreatePhase === 'pending' : isCreateConfirming;
+  const createIsConfirmed = isMockMode ? mockCreatePhase === 'confirmed' : isCreateConfirmed;
+  const createInProgress = isMockMode
+    ? mockCreatePhase === 'signing' || mockCreatePhase === 'pending'
+    : isCreating || isCreateConfirming;
+  const purchaseWaitingForSignature = isMockMode ? mockPurchasePhase === 'signing' : (isPurchasing && !purchaseHash);
+  const purchaseWaitingForConfirmations = isMockMode ? mockPurchasePhase === 'pending' : (isPurchasing && !!purchaseHash);
+  const purchaseIsConfirming = isMockMode ? mockPurchasePhase === 'pending' : isPurchaseConfirming;
+  const purchaseIsConfirmed = isMockMode ? mockPurchasePhase === 'confirmed' : isPurchaseConfirmed;
+  const purchaseInProgress = isMockMode
+    ? mockPurchasePhase === 'signing' || mockPurchasePhase === 'pending'
+    : isPurchasing || isPurchaseConfirming;
+  const displayChainId = isMockMode ? 31337 : chainId;
+
   // Check if pool already exists (only refetch after tx confirmed or on mount)
-  const shouldRefetchPool = mounted && isConnected && (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro');
+  const shouldRefetchPool = !isMockMode && mounted && isConnected && 
+    (demoState !== 'result' && demoState !== 'purchased' && demoState !== 'purchase_failed') &&
+    !(purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) &&
+    (isCreateConfirmed || isPurchaseConfirmed || demoState === 'intro' || demoState === 'creating' || demoState === 'created' || demoState === 'purchasing');
   const poolQuery = useReadContract({
     address: CONTRACT_ADDRESSES.PoolRegistry,
     abi: PoolRegistryABI,
@@ -181,16 +225,19 @@ export default function App() {
     query: { 
       enabled: shouldRefetchPool,
       refetchInterval: (query) => {
-        // Keep refetching if we're waiting for confirmation OR if pool was created but data not available yet
+        if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchase_failed') {
+          return false;
+        }
+        if (purchaseHash && purchaseReceiptFound.current.has(purchaseHash)) {
+          return false;
+        }
         if (isCreateConfirming || isPurchaseConfirming) {
           return 2000;
         }
-        // Continue refetching after confirmation until pool data is available
-        // Check if pool data exists and matches the expected pool ID
         if (isCreateConfirmed) {
           const poolData = poolQuery.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint] | undefined;
           if (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId)) {
-            return 2000; // Keep refetching every 2 seconds until pool data is available
+            return 2000;
           }
         }
         return false;
@@ -204,6 +251,10 @@ export default function App() {
   const [contractCodeExists, setContractCodeExists] = useState<boolean | null>(null);
   
   useEffect(() => {
+    if (mounted && isMockMode) {
+      setContractCodeExists(true);
+      return;
+    }
     if (mounted && isConnected && CONTRACT_ADDRESSES.PoolRegistry) {
       const checkContractCode = async () => {
         try {
@@ -227,7 +278,7 @@ export default function App() {
       };
       checkContractCode();
     }
-  }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry]);
+  }, [mounted, isConnected, CONTRACT_ADDRESSES.PoolRegistry, isMockMode]);
 
   // Query earnings and access for settlement display
   const { data: userEarnings } = useReadContract({
@@ -235,7 +286,7 @@ export default function App() {
     abi: PoolRegistryABI,
     functionName: 'earnings',
     args: address ? [address as `0x${string}`] : undefined,
-    query: { enabled: !!address && mounted && isConnected },
+    query: { enabled: !isMockMode && !!address && mounted && isConnected },
   });
 
   const { data: hasAccess } = useReadContract({
@@ -243,31 +294,53 @@ export default function App() {
     abi: PoolRegistryABI,
     functionName: 'hasPoolAccess',
     args: address && (demoState === 'result' || demoState === 'purchasing') ? [address as `0x${string}`, BigInt(DEMO_POOL.poolId)] : undefined,
-    query: { enabled: !!address && (demoState === 'result' || demoState === 'purchasing') && mounted && isConnected },
+    query: { enabled: !isMockMode && !!address && (demoState === 'result' || demoState === 'purchasing') && mounted && isConnected },
   });
+  const displayHasAccess = isMockMode ? demoState === 'result' : hasAccess;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && isConnected) {
-      addLog('info', 'Wallet connected');
-    }
-  }, [mounted, isConnected, addLog]);
+    return () => {
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+    };
+  }, []);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && isDemoConnected) {
+      addLog('info', isMockMode ? 'Demo mode active (no wallet required)' : 'Wallet connected');
+    } else if (mounted && !isDemoConnected && demoState !== 'intro') {
+      addLog('warning', 'Wallet disconnected. Please reconnect to continue.');
+    }
+  }, [mounted, isDemoConnected, addLog, demoState, isMockMode]);
+
+  useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
+    if (purchaseCompletedRef.current) {
+      return;
+    }
+    
+    if (demoState === 'result' || demoState === 'purchased' || demoState === 'purchasing' || demoState === 'purchase_failed') {
+      return;
+    }
+    
+    if (purchaseReceiptFound.current.size > 0) {
+      return;
+    }
+    
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
       if (demoState === 'intro') {
-        // Check if we should go directly to checkout
-        const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
-        if (goToCheckout) {
-          setDemoState('created'); // Go to purchase stage
-          sessionStorage.removeItem('goToCheckout'); // Clear flag
-        } else {
-          setDemoState('created');
-        }
-        addLog('info', 'Pool already exists, skipping creation', {
+        setDemoState('created');
+        addLog('info', 'Pool already exists, proceeding directly to purchase', {
           poolState: {
             exists: true,
             members: Number(poolData[2]),
@@ -275,10 +348,7 @@ export default function App() {
           },
         });
       } else if (demoState === 'creating') {
-        // Transition to 'created' state when pool data is available
-        // This works even if isCreateConfirmed hasn't updated yet (backup logic)
         if (isCreateConfirmed) {
-          // Log pool state after creation
           addLog('success', 'Pool created successfully', {
             poolState: {
               exists: true,
@@ -287,7 +357,6 @@ export default function App() {
             },
           });
         } else {
-          // Pool data exists but isCreateConfirmed not yet true - log anyway
           addLog('info', 'Pool data detected, transitioning to purchase step', {
             poolState: {
               exists: true,
@@ -296,31 +365,60 @@ export default function App() {
             },
           });
         }
-        // Always transition to 'created' state when pool data is available
-        // This ensures pool data is loaded before showing purchase step
         setDemoState('created');
-        // Check if we should go directly to checkout after creation
         const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
         if (goToCheckout) {
-          sessionStorage.removeItem('goToCheckout'); // Clear flag
+          sessionStorage.removeItem('goToCheckout');
         }
       }
     }
-  }, [poolData, demoState, isCreateConfirmed, addLog]);
+  }, [poolData, demoState, isCreateConfirmed, addLog, purchaseHash, isMockMode]);
 
   // Auto-create pool if coming from selection page and pool doesn't exist
   useEffect(() => {
+    if (isMockMode) {
+      return;
+    }
+    if (createFailedRef.current) {
+      return;
+    }
+    
+    if (DEMO_POOL.members.length === 0) {
+      return;
+    }
+    
+    const priceNum = parseFloat(DEMO_POOL.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return;
+    }
+    
     if (mounted && isConnected && demoState === 'intro') {
       const goToCheckout = typeof window !== 'undefined' && sessionStorage.getItem('goToCheckout') === 'true';
       const hasSelectedConfig = typeof window !== 'undefined' && sessionStorage.getItem('selectedConfig');
       
-      if (goToCheckout && hasSelectedConfig && poolData && poolData[0] !== BigInt(DEMO_POOL.poolId)) {
+      if (goToCheckout && hasSelectedConfig && (!poolData || poolData[0] !== BigInt(DEMO_POOL.poolId))) {
         // Pool doesn't exist, auto-create it
         if (!isCreating && !createHash) {
-          setDemoState('creating');
+          createFailedRef.current = false;
+          createFailedHashRef.current = null;
+          
           const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
           const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
           const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+          
+          if (serviceIds.length === 0 || registries.length === 0 || shares.length === 0) {
+            console.error('[AUTO-CREATE] ERROR: Empty arrays!', {
+              serviceIds: serviceIds.length,
+              registries: registries.length,
+              shares: shares.length,
+              members: DEMO_POOL.members
+            });
+            addLog('error', 'Invalid pool configuration: empty service arrays');
+            return;
+          }
+          
+          setDemoState('creating');
+          addLog('info', `Auto-creating pool with ${DEMO_POOL.members.length} services, price: ${DEMO_POOL.price} ETH`);
 
           try {
             writeCreate({
@@ -344,7 +442,7 @@ export default function App() {
         }
       }
     }
-  }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog]);
+  }, [mounted, isConnected, demoState, poolData, isCreating, createHash, DEMO_POOL, writeCreate, addLog, isMockMode]);
 
   // Activity tracking
   const addActivity = useCallback((activity: Omit<ActivityItem, 'id' | 'timestamp'>) => {
@@ -481,16 +579,16 @@ export default function App() {
       // The state transition will happen in the useEffect at line 237 when poolData updates
       setTimeout(async () => {
         try {
-          const result = await refetchPool();
-          if (result.data) {
-            const pool = result.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint];
-            addLog('success', 'Pool state refetched', {
-              poolState: {
-                exists: true,
-                members: Number(pool[2]),
-                totalShares: pool[3],
-              },
-            });
+        const result = await refetchPool();
+        if (result.data) {
+          const pool = result.data as [bigint, string, bigint, bigint, bigint, number, boolean, bigint, bigint];
+          addLog('success', 'Pool state refetched', {
+            poolState: {
+              exists: true,
+              members: Number(pool[2]),
+              totalShares: pool[3],
+            },
+          });
           } else {
             // Pool not found yet, refetchInterval will continue polling
             addLog('info', 'Pool not found yet, polling will continue...');
@@ -515,9 +613,9 @@ export default function App() {
       // Find activity using setActivities to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === createHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'pending' });
-        }
+      if (activity) {
+        updateActivity(activity.id, { status: 'pending' });
+      }
         return prev;
       });
       addLog('info', 'Waiting for transaction confirmations', {
@@ -581,13 +679,13 @@ export default function App() {
       // Find activity using setActivities to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === createReceipt.transactionHash);
-        if (activity) {
-          updateActivity(activity.id, {
-            status: 'confirmed',
-            blockNumber: createReceipt.blockNumber,
-            gasUsed: createReceipt.gasUsed,
-          });
-        }
+      if (activity) {
+        updateActivity(activity.id, {
+          status: 'confirmed',
+          blockNumber: createReceipt.blockNumber,
+          gasUsed: createReceipt.gasUsed,
+        });
+      }
         return prev;
       });
       // Parse events from receipt
@@ -622,9 +720,9 @@ export default function App() {
       // Find activity using ref to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === createHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-        }
+      if (activity) {
+        updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
+      }
         return prev;
       });
       addLog('error', 'createPool transaction failed', {
@@ -678,13 +776,13 @@ export default function App() {
             // Update activity status (using setActivities to avoid dependency)
             setActivities(prev => {
               const activity = prev.find(a => a.txHash === purchaseHash);
-              if (activity) {
-                updateActivity(activity.id, {
-                  status: 'confirmed',
-                  blockNumber: BigInt(data.result.blockNumber || '0'),
-                  gasUsed: BigInt(data.result.gasUsed || '0'),
-                });
-              }
+            if (activity) {
+              updateActivity(activity.id, {
+                status: 'confirmed',
+                blockNumber: BigInt(data.result.blockNumber || '0'),
+                gasUsed: BigInt(data.result.gasUsed || '0'),
+              });
+            }
               return prev;
             });
             // Update state to result - this will trigger the useEffect that sets demoState to 'result'
@@ -730,9 +828,9 @@ export default function App() {
       // Find activity using setActivities to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === purchaseHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'pending' });
-        }
+      if (activity) {
+        updateActivity(activity.id, { status: 'pending' });
+      }
         return prev;
       });
       addLog('info', 'Waiting for transaction confirmations', {
@@ -749,13 +847,13 @@ export default function App() {
       // Find activity using setActivities to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === purchaseReceipt.transactionHash);
-        if (activity) {
-          updateActivity(activity.id, {
-            status: 'confirmed',
-            blockNumber: purchaseReceipt.blockNumber,
-            gasUsed: purchaseReceipt.gasUsed,
-          });
-        }
+      if (activity) {
+        updateActivity(activity.id, {
+          status: 'confirmed',
+          blockNumber: purchaseReceipt.blockNumber,
+          gasUsed: purchaseReceipt.gasUsed,
+        });
+      }
         return prev;
       });
       addLog('success', 'purchasePool transaction confirmed', {
@@ -796,9 +894,9 @@ export default function App() {
       // Find activity using setActivities to avoid dependency on activities array
       setActivities(prev => {
         const activity = prev.find(a => a.txHash === purchaseHash);
-        if (activity) {
-          updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
-        }
+      if (activity) {
+        updateActivity(activity.id, { status: 'failed', error: 'Transaction failed' });
+      }
         return prev;
       });
       addLog('error', 'purchasePool transaction failed', {
@@ -812,25 +910,82 @@ export default function App() {
 
   // Navigation handlers that can cancel pending transactions
   const handleBackFromCreate = useCallback(() => {
-    if (isCreating || isCreateConfirming) {
+    if (isMockMode) {
+      // Clear mock timeouts
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+      setMockCreatePhase('idle');
+      setMockCreateHash(null);
+      createFailedRef.current = false;
+      createFailedHashRef.current = null;
+      addLog('info', 'Demo transaction cancelled');
+    } else if (isCreating || isCreateConfirming) {
       // Reset the transaction state
       resetCreate();
       addLog('info', 'Transaction cancelled. Please reject the transaction in MetaMask if the popup is still open.');
     }
     // Navigate back to home page
     router.push('/');
-  }, [isCreating, isCreateConfirming, resetCreate, addLog, router]);
+  }, [isCreating, isCreateConfirming, resetCreate, addLog, router, isMockMode]);
 
   const handleBackFromPurchase = useCallback(() => {
-    if (isPurchasing || isPurchaseConfirming) {
+    if (isMockMode) {
+      // Clear mock timeouts
+      mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+      mockTimeouts.current = [];
+      setMockPurchasePhase('idle');
+      setMockPurchaseHash(null);
+      addLog('info', 'Demo transaction cancelled');
+    } else if (isPurchasing || isPurchaseConfirming) {
       // Reset the transaction state
       resetPurchase();
       addLog('info', 'Transaction cancelled. Please reject the transaction in MetaMask if the popup is still open.');
     }
     setDemoState('created');
-  }, [isPurchasing, isPurchaseConfirming, resetPurchase, addLog]);
+  }, [isPurchasing, isPurchaseConfirming, resetPurchase, addLog, isMockMode]);
 
   const handlePurchase = useCallback(() => {
+    if (isMockMode) {
+      setDemoState('purchasing');
+      setMockPurchasePhase('signing');
+      setMockPurchaseHash(null);
+      addLog('info', 'Demo mode: simulating purchase');
+      const mockHash = makeMockHash();
+      const pendingTimeout = setTimeout(() => {
+        setMockPurchasePhase('pending');
+        setMockPurchaseHash(mockHash);
+        addActivity({
+          action: 'Purchase Pool',
+          status: 'submitting',
+          txHash: mockHash,
+        });
+        addLog('tx', 'purchasePool transaction sent (demo)', {
+          txHash: mockHash,
+          status: 'pending',
+        });
+      }, 400);
+      const confirmTimeout = setTimeout(() => {
+        setMockPurchasePhase('confirmed');
+        purchaseCompletedRef.current = true;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('purchaseCompleted', 'true');
+          sessionStorage.setItem('demoState', 'result');
+        }
+        setActivities(prev => prev.map(act =>
+          act.txHash === mockHash
+            ? { ...act, status: 'confirmed' as ActivityStatus }
+            : act
+        ));
+        addLog('success', 'purchasePool transaction confirmed (demo)', {
+          txHash: mockHash,
+          status: 'confirmed',
+        });
+        setDemoState('result');
+      }, 1400);
+      mockTimeouts.current.push(pendingTimeout, confirmTimeout);
+      return;
+    }
+    
     setDemoState('purchasing');
     addLog('info', 'Requesting wallet signature for purchasePool');
     writePurchase({
@@ -843,7 +998,7 @@ export default function App() {
       ],
       value: parseEther(DEMO_POOL.price),
     });
-  }, [writePurchase, addLog]);
+  }, [writePurchase, addLog, isMockMode, makeMockHash, addActivity, DEMO_POOL]);
 
   // Handle create confirmation - both from Wagmi and manual check
   // Use a ref to prevent duplicate triggers
@@ -873,14 +1028,72 @@ export default function App() {
   }, [demoState]);
 
   useEffect(() => {
+    if (isMockMode && mockCreatePhase === 'confirmed' && demoState === 'creating') {
+      setDemoState('created');
+    }
+  }, [isMockMode, mockCreatePhase, demoState]);
+
+  useEffect(() => {
+    if (isMockMode && mockPurchasePhase === 'confirmed') {
+      if (demoState !== 'result') {
+        setDemoState('result');
+      }
+      return;
+    }
     if (isPurchaseConfirmed) {
       setDemoState('result');
     }
-  }, [isPurchaseConfirmed]);
+  }, [isPurchaseConfirmed, isMockMode, mockPurchasePhase, demoState]);
 
   // Auto-run flow: check if pool exists, create if needed, then purchase
   const handleStartDemo = useCallback(async () => {
     addLog('info', 'Starting package creation flow');
+
+    if (isMockMode) {
+      if (DEMO_POOL.members.length === 0) {
+        addLog('error', 'No services selected. Please select services first.');
+        return;
+      }
+      createFailedRef.current = false;
+      createFailedHashRef.current = null;
+      setShouldAutoPurchase(true);
+      setDemoState('creating');
+      setMockCreatePhase('signing');
+      setMockCreateHash(null);
+      addLog('info', 'Demo mode: simulating pool creation');
+      const mockHash = makeMockHash();
+      const pendingTimeout = setTimeout(() => {
+        setMockCreatePhase('pending');
+        setMockCreateHash(mockHash);
+        addActivity({
+          action: 'Create Pool',
+          status: 'submitting',
+          txHash: mockHash,
+        });
+        addLog('tx', 'createPool transaction sent (demo)', {
+          txHash: mockHash,
+          status: 'pending',
+        });
+      }, 400);
+      const confirmTimeout = setTimeout(() => {
+        setMockCreatePhase('confirmed');
+        setActivities(prev => prev.map(act =>
+          act.txHash === mockHash
+            ? { ...act, status: 'confirmed' as ActivityStatus }
+            : act
+        ));
+        addLog('success', 'Pool created successfully (demo)', {
+          poolState: {
+            exists: true,
+            members: DEMO_POOL.members.length,
+            totalShares: BigInt(DEMO_POOL.members.reduce((sum, member) => sum + parseInt(member.shares, 10), 0)),
+          },
+        });
+        setDemoState('created');
+      }, 1400);
+      mockTimeouts.current.push(pendingTimeout, confirmTimeout);
+      return;
+    }
     
     // Check network first - both MetaMask and Wagmi
     const ethereum = (window as any).ethereum;
@@ -941,6 +1154,23 @@ export default function App() {
         return;
       }
     }
+
+    // Check if any services are selected
+    if (DEMO_POOL.members.length === 0) {
+      addLog('error', 'No services selected. Please select services first.');
+      return;
+    }
+
+    // Validate price
+    const priceNum = parseFloat(DEMO_POOL.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      addLog('error', `Invalid price: ${DEMO_POOL.price}. Please select services first.`);
+      return;
+    }
+
+    // Clear any previous failure flags
+    createFailedRef.current = false;
+    createFailedHashRef.current = null;
     
     // Check if pool exists
     if (poolData && poolData[0] === BigInt(DEMO_POOL.poolId)) {
@@ -950,12 +1180,28 @@ export default function App() {
     } else {
       // Pool doesn't exist, create it first (will auto-purchase after creation)
       addLog('info', 'Pool does not exist, creating pool...');
-      addLog('info', 'Requesting wallet signature for createPool');
-      setShouldAutoPurchase(true);
-      setDemoState('creating');
+      addLog('info', `Creating pool with ${DEMO_POOL.members.length} services, price: ${DEMO_POOL.price} ETH`);
+      
       const serviceIds = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.serviceId));
       const registries = DEMO_POOL.members.map((m: PoolMember) => m.registry as `0x${string}`);
       const shares = DEMO_POOL.members.map((m: PoolMember) => BigInt(m.shares));
+
+      // Double-check arrays are not empty
+      if (serviceIds.length === 0 || registries.length === 0 || shares.length === 0) {
+        addLog('error', `Invalid pool configuration: serviceIds=${serviceIds.length}, registries=${registries.length}, shares=${shares.length}`);
+        console.error('[CREATE POOL] Invalid state:', { 
+          members: DEMO_POOL.members, 
+          serviceIds, 
+          registries, 
+          shares,
+          price: DEMO_POOL.price 
+        });
+        return;
+      }
+
+      setShouldAutoPurchase(true);
+      setDemoState('creating');
+      addLog('info', 'Requesting wallet signature for createPool');
 
       try {
         await writeCreate({
@@ -977,9 +1223,20 @@ export default function App() {
         setDemoState('intro');
       }
     }
-  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain]);
+  }, [poolData, writeCreate, handlePurchase, addLog, chainId, switchChain, isMockMode, makeMockHash, addActivity, DEMO_POOL]);
 
   const handleReset = () => {
+    purchaseCompletedRef.current = false;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('purchaseCompleted');
+      sessionStorage.removeItem('demoState');
+    }
+    mockTimeouts.current.forEach(timeoutId => clearTimeout(timeoutId));
+    mockTimeouts.current = [];
+    setMockCreatePhase('idle');
+    setMockPurchasePhase('idle');
+    setMockCreateHash(null);
+    setMockPurchaseHash(null);
     setDemoState('intro');
     setActivities([]);
     setEventLogs([]);
@@ -1139,7 +1396,7 @@ export default function App() {
                     {isMockMode ? 'Demo Mode' : 'Connected:'}
                   </span>
                   {!isMockMode && address && (
-                    <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                  <span className="ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
                   )}
                 </div>
               ) : (
@@ -1179,27 +1436,27 @@ export default function App() {
                   <div>
                     <h1 className="text-2xl font-bold mb-2">Service Package #{DEMO_POOL.poolId}</h1>
                     <p className="text-white/80 text-sm">Complete access to selected services</p>
-                  </div>
+                </div>
                   <div className="bg-white/15 backdrop-blur-sm rounded-lg p-4 border border-white/20">
                     <div className="grid grid-cols-4 gap-4 text-center">
-                      <div>
+                    <div>
                         <span className="text-white/70 text-xs block mb-1">Price</span>
                         <span className="text-white font-semibold text-lg">{DEMO_POOL.price} ETH</span>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <span className="text-white/70 text-xs block mb-1">Duration</span>
                         <span className="text-white font-semibold text-lg">{daysDuration} days</span>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <span className="text-white/70 text-xs block mb-1">Fee</span>
                         <span className="text-white font-semibold text-lg">{Number(parseInt(DEMO_POOL.operatorFeeBps) / 100)}%</span>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <span className="text-white/70 text-xs block mb-1">Services</span>
                         <span className="text-white font-semibold text-lg">{DEMO_POOL.members.length}</span>
-                      </div>
                     </div>
                   </div>
+                </div>
                 </div>
               </section>
 
@@ -1393,7 +1650,7 @@ export default function App() {
             {demoState === 'purchasing' && (
               <div>
                 {/* Check if already purchased */}
-                {hasAccess === true && (
+                {displayHasAccess === true && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-800 font-semibold flex items-center gap-2">
                       <CheckIcon className="w-5 h-5" />
@@ -1411,7 +1668,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {hasAccess !== true && (
+                {displayHasAccess !== true && (
                   <>
                 <h2 className="mb-2 text-[1.75rem] font-semibold">Step 2: Purchase Package</h2>
                 <p className="text-[#666666] mb-6 text-lg">
@@ -1582,7 +1839,7 @@ export default function App() {
                     operatorFee={settlement.operatorFee.toFixed(4)}
                     gasUsed={purchaseReceipt?.gasUsed}
                   />
-                </div>
+                    </div>
 
                 {/* Money Flow Diagram */}
                 <div className="mb-6">
@@ -1607,7 +1864,7 @@ export default function App() {
                       };
                     })}
                   />
-                </div>
+                    </div>
 
                 {/* Detailed Revenue Distribution (for reference) */}
                 <div className="mb-6">
@@ -1633,22 +1890,22 @@ export default function App() {
                         color: colors[index % colors.length],
                       };
                     })}
-                  />
-                </div>
+                            />
+                          </div>
 
                 {/* User Earnings */}
-                {userEarnings !== undefined && (
+                    {userEarnings !== undefined && (
                   <InfoCard variant="info" className="mb-6">
-                    <div className="text-sm text-[#666666]">
-                      <strong>Your Earnings Ledger:</strong>{' '}
-                      <span className="font-semibold text-[#1a1a1a]">
-                        {userEarnings ? `${String(Number(userEarnings) / 1e18)} ETH` : '0 ETH'}
-                      </span>
-                      <div className="text-xs text-[#999999] mt-1 italic">
-                        Earnings accumulate across all pools. Use withdraw() to claim.
-                      </div>
-                    </div>
-                  </InfoCard>
+                        <div className="text-sm text-[#666666]">
+                          <strong>Your Earnings Ledger:</strong>{' '}
+                          <span className="font-semibold text-[#1a1a1a]">
+                            {userEarnings ? `${String(Number(userEarnings) / 1e18)} ETH` : '0 ETH'}
+                          </span>
+                          <div className="text-xs text-[#999999] mt-1 italic">
+                            Earnings accumulate across all pools. Use withdraw() to claim.
+                          </div>
+                  </div>
+                </InfoCard>
                 )}
 
                 {/* Event Log Panel */}
@@ -1670,7 +1927,7 @@ export default function App() {
                     <button
                       onClick={() => {
                         // Check if user already has access - if so, go to result, otherwise go to purchasing
-                        if (hasAccess === true) {
+                        if (displayHasAccess === true) {
                           setDemoState('result');
                         } else {
                           // Reset purchase state when going back
