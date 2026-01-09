@@ -73,6 +73,7 @@ export default function App() {
   const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>('intro');
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
   const [txLogs, setTxLogs] = useState<TransactionLogEntry[]>([]);
